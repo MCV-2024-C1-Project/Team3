@@ -87,7 +87,7 @@ Since the datasets are too large to be uploaded to GitHub, you will need to manu
    Your `data/` folder should look like this:
 
    ```
-   CBIR_Project/
+   Team3/
    ├── data/
    │   ├── BBDD/
    │   │   ├── 00001.jpg
