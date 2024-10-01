@@ -45,7 +45,7 @@ First, clone this repository to your local machine:
 
 ```bash
 git clone https://github.com/MCV-2024-C1-Project/Team3.git
-cd cbir_project
+cd Team3
 ```
 
 ### 2. Create a Virtual Environment with `venv`
