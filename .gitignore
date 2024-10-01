@@ -1,0 +1,39 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+env/
+
+# Data files (BBDD and query datasets)
+data/BBDD/
+data/qsd1_w1/
+
+# Results (generated output files)
+results/
+
+# Logs
+*.log
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Python-specific packaging files
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+
+# Test coverage results
+.coverage
+*.cover
+*.coverage.*
+.cache
+
+# IDE settings (optional)
+.vscode/
+.idea/
+*.iml
