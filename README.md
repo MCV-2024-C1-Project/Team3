@@ -1,6 +1,6 @@
-# Content Based Image Retrieval (CBIR)
+# Content Based Image Retrieval
 
-This project implements a **Content Based Image Retrieval (CBIR)** system that searches for similar images based on color descriptors. The system is developed in Python as part of the course "Introduction to Human and Computer Vision."
+This project implements a **Content Based Image Retrieval** system that searches for similar images based on color descriptors. The system is developed in Python as part of the course "Introduction to Human and Computer Vision."
 
 ## Project Structure
 
