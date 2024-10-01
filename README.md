@@ -13,13 +13,25 @@ Team3/
 │   ├── BBDD/               # Folder with museum images
 │   └── qsd1_w1/            # Folder with query images (QSD1)
 │
-├── src/                    # Main source code
+├── evaluation/                 
+│   ├── bbox_iou.py             
+│   └── evaluation_funcs.py   
+│
+├── src/                     # Main source code
 │   ├── descriptors.py       # Functions to compute image descriptors
 │   ├── similarity.py        # Functions to compute similarity measures
 │   └── main.py              # Main script to run the entire pipeline
 │
-├── README.md               # Setup and usage instructions
-└── requirements.txt        # List of required dependencies
+├── utils/                 
+│   ├── plot_results.py             
+│   └── print_dict.py   
+│
+├── geometry_utils.py
+├── README.md               
+├── requirements.txt        
+├── score_painting_retrieval.py
+└── test_submission.py
+
 
 ```
 
@@ -119,4 +131,7 @@ deactivate
 ```
 
 This will return your terminal to its default Python environment.
+
+
+
 
