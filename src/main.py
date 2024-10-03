@@ -10,4 +10,5 @@ if __name__ == '__main__':
     hist = cielab.describe(image)
     cielab.save_histogram(hist, 'results/cielab_hist.png')
 
-
+    hist = hsv.describe(image)
+    hsv.save_histogram(hist, 'results/hsv_hist.png')
