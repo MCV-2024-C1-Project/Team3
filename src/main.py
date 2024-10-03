@@ -67,6 +67,3 @@ if __name__ == '__main__':
         print(f"HSV histograms saved as {hsv_npy}")
 
     print("All histograms have been successfully loaded or calculated.")
-
-    # TODO: Task 2 (Miren and Lucia code)
-    
