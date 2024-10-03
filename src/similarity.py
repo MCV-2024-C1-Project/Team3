@@ -1,8 +1,5 @@
 # similarity.py - Task 2
 import cv2
-import os
-from src.descriptors import HistogramDescriptor
-import numpy as np
 from utils.preprocessing import normalizeData
 
 
