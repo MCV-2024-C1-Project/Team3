@@ -5,6 +5,7 @@ __pycache__/
 
 # Virtual environment
 env/
+.venv/
 
 # Data files (BBDD and query datasets)
 data/BBDD/
