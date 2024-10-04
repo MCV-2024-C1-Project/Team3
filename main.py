@@ -46,8 +46,8 @@ def process_images(folder_path, descriptor):
 def mAPK(K, hist, labels, similarity_measure, hist_type):
 
     top_K = []
+    tot_top_K = []
     measures = ComputeSimilarity()
-    mapk_K = 0
 
     for img in os.listdir('data/qsd1_w1'):
         if hist_type == "CIELAB":
@@ -67,11 +67,15 @@ def mAPK(K, hist, labels, similarity_measure, hist_type):
             similarities_inter = {key: measures.histogramIntersection(histogram, value['histograms']) for key, value in hist.items()}
             top_K.append([k for k, v in sorted(similarities_inter.items(), key=lambda item: item[1], reverse=False)][:K])
             top_K_num = [[process_name(name[0])] for name in top_K]
+            tot_top_K.append(top_K_num)
             
         else:
             similarities_inter = {key: measures.bhattacharyyaDistance(histogram, value['histograms']) for key, value in hist.items()}
             top_K.append([k for k, v in sorted(similarities_inter.items(), key=lambda item: item[1], reverse=False)][:K])
             top_K_num = [[process_name(name[0])] for name in top_K]
+    tot_top_K.append(top_K_num)
+    mapk_K = mapk(labels, tot_top_K[0], K)
+
 
     return mapk_K
 
@@ -124,21 +128,29 @@ if __name__ == '__main__':
 
 
     print(mapInterCIELAB_1)
-    #print(mapInterCIELAB_5)
+    print(mapInterCIELAB_5)
+
     # Second, using Bhattacharyya distance
 
     mapBhattCIELAB_1 = mAPK(1, histograms_cielab, labels, "bhatt", hist_type="CIELAB")
-    #mapBhattCIELAB_5 = mAPK(5, histograms_cielab, labels, "bhatt")
+    mapBhattCIELAB_5 = mAPK(5, histograms_cielab, labels, "bhatt", hist_type="CIELAB")
 
     print(mapBhattCIELAB_1)
+    print(mapBhattCIELAB_5)
 
     # Calculate similarities with HSV histograms
     # First, using histogram Intersection
 
-    #mapInterHSV_1 = mAPK(1, histograms_hsv, labels, "intersection")
-    #mapInterHSV_5 = mAPK(5, histograms_hsv, labels, "intersection")
+    mapInterHSV_1 = mAPK(1, histograms_hsv, labels, "intersection", hist_type="HSV")
+    mapInterHSV_5 = mAPK(5, histograms_hsv, labels, "intersection", hist_type="HSV")
+
+    print(mapInterHSV_1)
+    print(mapInterHSV_5)
 
     # Second, using Bhattacharyya distance
 
-    #mapBhattHSV_1 = mAPK(1, histograms_hsv, labels, "bhatt")
-    #mapBhattHSV_5 = mAPK(5, histograms_hsv, labels, "bhatt")
+    mapBhattHSV_1 = mAPK(1, histograms_hsv, labels, "bhatt", hist_type="HSV")
+    mapBhattHSV_5 = mAPK(5, histograms_hsv, labels, "bhatt", hist_type="HSV")
+
+    print(mapBhattHSV_1)
+    print(mapBhattHSV_5)
