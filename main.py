@@ -76,7 +76,6 @@ def mAPK(K, hist, labels, similarity_measure, hist_type):
             top_K.append([k for k, v in sorted(similarities_inter.items(), key=lambda item: item[1], reverse=False)][:K])
     
     top_K_num = [process_name(name) for name in top_K] 
-    print(len(top_K_num))
 
     mapk_K = mapk(labels, top_K_num, K)
 
