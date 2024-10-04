@@ -1,10 +1,18 @@
 import os
 import cv2
 import numpy as np
-from descriptors import ImageDescriptor
+from src.descriptors import ImageDescriptor
 import pickle
 from evaluation.average_precision import mapk
-from similarity import ComputeSimilarity
+from src.similarity import ComputeSimilarity
+
+def process_name(name): 
+    number_str = name[5:-4]  # "00060"
+
+    # Convertir a entero para eliminar los ceros a la izquierda
+    number = int(number_str)
+
+    return number
 
 def process_images(folder_path, descriptor):
     histograms_dict = {}
@@ -39,24 +47,33 @@ def mAPK(K, hist, labels, similarity_measure, hist_type):
 
     top_K = []
     measures = ComputeSimilarity()
+    mapk_K = 0
 
     for img in os.listdir('data/qsd1_w1'):
         if hist_type == "CIELAB":
             descriptor = ImageDescriptor('CIELAB')
-            histogram = descriptor.describe(cv2.imread(f'data/qsd1_w1/{img}'))
+            try:
+                histogram = descriptor.describe(cv2.imread(f'data/qsd1_w1/{img}'))
+            except: 
+                continue
         else:
             descriptor = ImageDescriptor('HSV')
-            histogram = descriptor.describe(cv2.imread(f'data/qsd1_w1/{img}'))
-
-
-        if similarity_measure == "intersection":   
+            try:
+                histogram = descriptor.describe(cv2.imread(f'data/qsd1_w1/{img}'))
+            except:
+                continue
+        
+        if similarity_measure == "intersection":  
             similarities_inter = {key: measures.histogramIntersection(histogram, value['histograms']) for key, value in hist.items()}
-            top_K.append([k for k, v in sorted(similarities_inter.items(), key=lambda item: item[1], reverse=True)][:K])
-            mapk = mapk(labels[img], top_K, K)
+            top_K.append([k for k, v in sorted(similarities_inter.items(), key=lambda item: item[1], reverse=False)][:K])
+            top_K_num = [[process_name(name[0])] for name in top_K]
+            
         else:
-            pass
+            similarities_inter = {key: measures.bhattacharyyaDistance(histogram, value['histograms']) for key, value in hist.items()}
+            top_K.append([k for k, v in sorted(similarities_inter.items(), key=lambda item: item[1], reverse=False)][:K])
+            top_K_num = [[process_name(name[0])] for name in top_K]
 
-    return mapk
+    return mapk_K
 
 
 if __name__ == '__main__':
@@ -96,21 +113,24 @@ if __name__ == '__main__':
 
     # Load the labels for the comparison
 
-    with open('..\data\qsd1_w1\gt_corresps.pkl') as f:
+    with open('data/qsd1_w1/gt_corresps.pkl', 'rb') as f:
         labels = pickle.load(f)
 
     # Calculate similarities with CIELAB histograms
     # First, using histogram Intersection
 
-    mapInterCIELAB_1 = mAPK(1, histograms_cielab, labels, "intersection")
-    mapInterCIELAB_5 = mAPK(5, histograms_cielab, labels, "intersection")
+    mapInterCIELAB_1 = mAPK(1, histograms_cielab, labels, "intersection", hist_type="CIELAB")
+    mapInterCIELAB_5 = mAPK(5, histograms_cielab, labels, "intersection", hist_type="CIELAB")
 
 
     print(mapInterCIELAB_1)
+    #print(mapInterCIELAB_5)
     # Second, using Bhattacharyya distance
 
-    #mapBhattCIELAB_1 = mAPK(1, histograms_cielab, labels, "bhatt")
+    mapBhattCIELAB_1 = mAPK(1, histograms_cielab, labels, "bhatt", hist_type="CIELAB")
     #mapBhattCIELAB_5 = mAPK(5, histograms_cielab, labels, "bhatt")
+
+    print(mapBhattCIELAB_1)
 
     # Calculate similarities with HSV histograms
     # First, using histogram Intersection
