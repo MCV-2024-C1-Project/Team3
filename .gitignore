@@ -9,6 +9,7 @@ env/
 # Data files (BBDD and query datasets)
 data/BBDD/
 data/qsd1_w1/
+data/qst1_w1/
 
 # Results (generated output files)
 results/
