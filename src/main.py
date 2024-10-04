@@ -2,6 +2,7 @@ import os
 import cv2
 import numpy as np
 from descriptors import ImageDescriptor
+import pickle
 
 def process_images(folder_path, descriptor):
     histograms_dict = {}
@@ -31,6 +32,17 @@ def process_images(folder_path, descriptor):
             }
     
     return histograms_dict
+
+def mAPK(K, hist, labels, similarity_measure):
+
+    top_K = []
+
+    if similarity_measure == "intersection":
+        pass
+    else:
+        pass
+
+    return top_K
 
 
 if __name__ == '__main__':
@@ -67,3 +79,30 @@ if __name__ == '__main__':
         print(f"HSV histograms saved as {hsv_npy}")
 
     print("All histograms have been successfully loaded or calculated.")
+
+    # Load the labels for the comparison
+
+    with open('..\data\qsd1_w1\gt_corresps.pkl') as f:
+        labels = pickle.load(f)
+
+    # Calculate similarities with CIELAB histograms
+    # First, using histogram Intersection
+
+    mapInterCIELAB_1 = mAPK(1, histograms_cielab, labels, "intersection")
+    mapInterCIELAB_5 = mAPK(5, histograms_cielab, labels, "intersection")
+
+    # Second, using Bhattacharyya distance
+
+    mapBhattCIELAB_1 = mAPK(1, histograms_cielab, labels, "bhatt")
+    mapBhattCIELAB_5 = mAPK(5, histograms_cielab, labels, "bhatt")
+
+    # Calculate similarities with HSV histograms
+    # First, using histogram Intersection
+
+    mapInterHSV_1 = mAPK(1, histograms_hsv, labels, "intersection")
+    mapInterHSV_5 = mAPK(5, histograms_hsv, labels, "intersection")
+
+    # Second, using Bhattacharyya distance
+
+    mapBhattHSV_1 = mAPK(1, histograms_hsv, labels, "bhatt")
+    mapBhattHSV_5 = mAPK(5, histograms_hsv, labels, "bhatt")
