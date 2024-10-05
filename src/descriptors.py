@@ -59,7 +59,7 @@ class ImageDescriptor:
 
         plt.subplots_adjust(top=0.85) #Adjust spacing of figure title
 
-        #fig.savefig(output_path,bbox_inches='tight') #store image
+        # fig.savefig(output_path,bbox_inches='tight') #store image
         plt.close()  # Close the figure to free up memory
 
         

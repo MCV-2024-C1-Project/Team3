@@ -8,8 +8,7 @@ env/
 .venv/
 
 # Data files (BBDD and query datasets)
-data/BBDD/
-data/qsd1_w1/
+data/*
 
 # Results (generated output files)
 results/
