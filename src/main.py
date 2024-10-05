@@ -5,6 +5,9 @@ from descriptors import ImageDescriptor
 import pickle
 from evaluation.average_precision import mapk
 from similarity import ComputeSimilarity
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 
 # Constants for the paths to the data (using path.join to avoid problems with the OS :D )
 DATA_FOLDER = './data'
