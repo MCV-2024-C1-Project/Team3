@@ -79,6 +79,9 @@ def mAPK(K, hist, labels, similarity_measure, hist_type):
         if similarity_measure == "intersection":  
             similarities = {key: measures.histogramIntersection(histogram, value['histograms']) for key, value in hist.items()}
             top_K.append([k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=True)][:K])
+        elif similarity_measure == "canberra":
+            similarities = {key: measures.canberraDistance(histogram, value['histograms']) for key, value in hist.items()}
+            top_K.append([k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=False)][:K])
         else:
             similarities = {key: measures.bhattacharyyaDistance(histogram, value['histograms']) for key, value in hist.items()}
             top_K.append([k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=False)][:K])
@@ -138,6 +141,14 @@ if __name__ == '__main__':
     mapBhattCIELAB_5 = mAPK(5, histograms_cielab, labels, "bhatt", hist_type="CIELAB")
     print("mAP@5 for CIELAB and Bhatt", mapBhattCIELAB_5)
 
+    print("Calculating mAP@1 using CIELAB and Canberra distance...")
+    mapBhattCIELAB_1 = mAPK(1, histograms_cielab, labels, "canberra", hist_type="CIELAB")
+    print("mAP@1 for CIELAB and Canberra", mapBhattCIELAB_1)
+
+    print("Calculating mAP@5 using CIELAB and Canberra distance...")
+    mapBhattCIELAB_5 = mAPK(5, histograms_cielab, labels, "canberra", hist_type="CIELAB")
+    print("mAP@5 for CIELAB and Canberra", mapBhattCIELAB_5)
+
     # Calculate similarities with HSV histograms
     print("Calculating mAP@1 using HSV and histogram intersection...")
     mapInterHSV_1 = mAPK(1, histograms_hsv, labels, "intersection", hist_type="HSV")
@@ -154,3 +165,11 @@ if __name__ == '__main__':
     print("Calculating mAP@5 using HSV and Bhattacharyya distance...")
     mapBhattHSV_5 = mAPK(5, histograms_hsv, labels, "bhatt", hist_type="HSV")
     print("mAP@5 for HSV and Bhatt: ", mapBhattHSV_5)
+
+    print("Calculating mAP@1 using HSV and Canberra distance...")
+    mapBhattHSV_1 = mAPK(1, histograms_hsv, labels, "canberra", hist_type="HSV")
+    print("mAP@1 for HSV and Canberra: ", mapBhattHSV_1)
+
+    print("Calculating mAP@5 using HSV and Canberra distance...")
+    mapBhattHSV_5 = mAPK(5, histograms_hsv, labels, "canberra", hist_type="HSV")
+    print("mAP@5 for HSV and Canberra: ", mapBhattHSV_5)
