@@ -6,6 +6,7 @@ import os
 
 
 from utils.preprocessing import normalizeData
+from utils.preprocessing import normalizeHistogram
 
 
 class ComputeSimilarity:
@@ -16,10 +17,10 @@ class ComputeSimilarity:
     def histogramIntersection(self,h1, h2):
         similarity_values = [
             self.histogramIntersectionGrayScale(
-                normalizeData(c1,0,255), 
-                normalizeData(c2,0,255)) for c1, c2 in zip(h1, h2)]
+                normalizeHistogram(c1), 
+                normalizeHistogram(c2)) for c1, c2 in zip(h1, h2)]
         tot_similarity = sum(similarity_values) / len(similarity_values)
-
+        if tot_similarity > 1: print(tot_similarity)
         return tot_similarity
     
     # Bhattacharyya distance implementation (1D)
@@ -34,7 +35,7 @@ class ComputeSimilarity:
                 normalizeData(c1,0,255), 
                 normalizeData(c2,0,255)) for c1, c2 in zip(h1, h2)]
         tot_similarity = sum(similarity_values) / len(similarity_values)
-
+        if tot_similarity > 1: print(tot_similarity)
         return tot_similarity
 
 
