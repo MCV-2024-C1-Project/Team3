@@ -145,7 +145,7 @@ if __name__ == '__main__':
 
     print("Calculating mAP@5 using HSV and histogram intersection...")
     mapInterHSV_5 = mAPK(5, histograms_hsv, labels, "intersection", hist_type="HSV")
-    print("mAP@5 for HSV and Bhatt: ", mapInterHSV_5)
+    print("mAP@5 for HSV and Intersection: ", mapInterHSV_5)
 
     print("Calculating mAP@1 using HSV and Bhattacharyya distance...")
     mapBhattHSV_1 = mAPK(1, histograms_hsv, labels, "bhatt", hist_type="HSV")
