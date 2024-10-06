@@ -1,5 +1,6 @@
 import os
 import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import cv2
 import numpy as np
 import pickle
@@ -11,6 +12,7 @@ from evaluation.average_precision import mapk
 DATA_FOLDER = './data'
 BBDD_FOLDER = os.path.join(DATA_FOLDER, 'BBDD')
 QSD1_W1_FOLDER = os.path.join(DATA_FOLDER, 'qsd1_w1')
+QST1_W1_FOLDER = os.path.join(DATA_FOLDER, 'qst1_w1')
 RESULTS_FOLDER = './results'
 GT_CORRESPS_FILE = os.path.join(QSD1_W1_FOLDER, 'gt_corresps.pkl')
 
@@ -49,13 +51,13 @@ def process_images(folder_path, descriptor):
             }
     return histograms_dict
 
-def calculate_similarity(histograms, descriptor, labels, K, similarity_measure):
+def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, folder=QSD1_W1_FOLDER):
     """Calculate mAP@K for a given similarity measure and descriptor."""
     measures = ComputeSimilarity()
     top_K = []
 
-    for img in sorted(os.listdir(QSD1_W1_FOLDER)):
-        image_path = os.path.join(QSD1_W1_FOLDER, img)
+    for img in sorted(os.listdir(folder)):
+        image_path = os.path.join(folder, img)
 
         # Check if the file is an image
         if not img.endswith(".jpg"):
@@ -83,22 +85,19 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure):
 
     return top_K  # Return top K results (list of lists)
 
-def process_similarity_measures(histograms, descriptor, labels, k_val, method_folder):
+def process_similarity_measures(histograms, descriptor, labels, k_val, method_folder, images_folder=QSD1_W1_FOLDER):
     """Process all combinations of similarity measures for a single descriptor."""
     similarity_measures = ["intersection", "canberra"]
-    results = {}
 
     for measure in similarity_measures:
         print(f"Calculating mAP@{k_val} for {descriptor.color_space} and {measure}...")
-        top_K = calculate_similarity(histograms, descriptor, labels, k_val, measure)
+        top_K = calculate_similarity(histograms, descriptor, labels, k_val, measure, folder=images_folder)
 
         # Calculate mAP
         map_k = mapk(labels, top_K, k_val)
         print(f"mAP@{k_val} for {descriptor.color_space} and {measure}: {map_k}")
         # print(f"List of lists for {descriptor.color_space} and {measure} (Top {k_val}): {top_K}\n")
 
-        # Store results
-        results[f'{descriptor.color_space}_{measure}'] = top_K
 
     # Save results to the corresponding method folder
     if not os.path.exists(method_folder):
@@ -106,7 +105,7 @@ def process_similarity_measures(histograms, descriptor, labels, k_val, method_fo
 
     pkl_output_path = os.path.join(method_folder, 'result.pkl')
     with open(pkl_output_path, 'wb') as f:
-        pickle.dump(results, f)
+        pickle.dump(top_K, f)
 
     print(f"Results saved to {pkl_output_path}")
 
@@ -132,3 +131,11 @@ if __name__ == '__main__':
     print("Processing results for method2 (HSV)...")
     process_similarity_measures(histograms_hsv, ImageDescriptor('HSV'), labels, k_val=1, method_folder=METHOD2_FOLDER)
     process_similarity_measures(histograms_hsv, ImageDescriptor('HSV'), labels, k_val=5, method_folder=METHOD2_FOLDER)
+    
+    # Process results for HLS (method1) with k=10 for the test
+    print("Processing results for method1 (HLS)...")
+    process_similarity_measures(histograms_hls, ImageDescriptor('HLS'), labels, k_val=10, method_folder=METHOD1_FOLDER, images_folder=QST1_W1_FOLDER)
+
+    # Process results for HSV (method2) with k=1 and k=10 for the test
+    print("Processing results for method2 (HSV)...")
+    process_similarity_measures(histograms_hsv, ImageDescriptor('HSV'), labels, k_val=10, method_folder=METHOD2_FOLDER, images_folder=QST1_W1_FOLDER)
