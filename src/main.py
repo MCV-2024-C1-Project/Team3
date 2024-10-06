@@ -20,6 +20,11 @@ HSV_HIST_NPY = os.path.join(RESULTS_FOLDER, 'histograms_hsv.npy')
 
 
 def process_name(name): 
+
+    """
+        Function to convert a string name into a number
+    """
+    
     numbers = []
     for n in name:
         number_str = n[5:-4]
@@ -59,6 +64,16 @@ def process_images(folder_path, descriptor):
 
 
 def mAPK(K, hist, labels, similarity_measure, hist_type):
+    """
+        Calculate mAP@K of a set of validation images (QSD1_W1) given their ground truth values
+
+        K: Number of top results to take
+        hist: histogram representations of the images in the database
+        labels: Ground truth values of the validation images
+        similarity_measure: "intersection", "bhatt" or "canberra". The type of similarity to use to compare the histograms
+        hist_type: The histogram descriptor to use to describe the histograms on the dataset and on the validation images
+
+    """
 
     top_K = []
     measures = ComputeSimilarity()
