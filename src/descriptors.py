@@ -6,13 +6,13 @@ import numpy as np
 class ImageDescriptor:
     # Define the ranges for each color space
     COLOR_RANGES = {
-        'CIELAB': [[0, 256], [0, 256], [0, 256]],
-        'HSV': [[0, 180], [0, 256], [0, 256]]
+        'HLS': [[0, 256], [0, 256], [0, 256]],
+        'HSV': [[0, 256], [0, 256], [0, 256]]
     }
 
     # Define the names for each channel
     CHANNEL_NAMES = {
-        'CIELAB': ['L*', 'a*', 'b*'],
+        'HLS': ['H', 'L', 'S'],
         'HSV': ['H', 'S', 'V']
     }
 
@@ -25,10 +25,10 @@ class ImageDescriptor:
 
     def describe(self, image):
         # Select color space
-        if self.color_space == 'CIELAB':
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        if self.color_space == 'HLS':
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2HLS_FULL)
         elif self.color_space == 'HSV':
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV_FULL)
 
         # Define the ranges for each channel
         ranges = self.COLOR_RANGES[self.color_space]

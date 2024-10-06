@@ -15,7 +15,7 @@ BBDD_FOLDER = os.path.join(DATA_FOLDER, 'BBDD')
 QSD1_W1_FOLDER = os.path.join(DATA_FOLDER, 'qsd1_w1')
 RESULTS_FOLDER = './results'
 GT_CORRESPS_FILE = os.path.join(QSD1_W1_FOLDER, 'gt_corresps.pkl')
-CIELAB_HIST_NPY = os.path.join(RESULTS_FOLDER, 'histograms_cielab.npy')
+HLS_HIST_NPY = os.path.join(RESULTS_FOLDER, 'histograms_hls.npy')
 HSV_HIST_NPY = os.path.join(RESULTS_FOLDER, 'histograms_hsv.npy')
 
 
@@ -50,8 +50,8 @@ def process_images(folder_path, descriptor):
             hist = descriptor.describe(image)
             
             # Save the histogram as an image
-            output_image_path = os.path.join(RESULTS_FOLDER, f'{filename.split(".")[0]}_{descriptor.color_space.lower()}_hist.png')
-            descriptor.save_histogram(hist, output_image_path)
+            # output_image_path = os.path.join(RESULTS_FOLDER, f'{filename.split(".")[0]}_{descriptor.color_space.lower()}_hist.png')
+            # descriptor.save_histogram(hist, output_image_path)
             
             # Save the histogram in the npy dictionary
             histograms_dict[filename] = {
@@ -82,8 +82,8 @@ def mAPK(K, hist, labels, similarity_measure, hist_type):
         image_path = os.path.join(QSD1_W1_FOLDER, img)
         
         # Depending on which descriptor we use, select one or another
-        if hist_type == "CIELAB":
-            descriptor = ImageDescriptor('CIELAB')
+        if hist_type == "HLS":
+            descriptor = ImageDescriptor('HLS')
         else:
             descriptor = ImageDescriptor('HSV')
 
@@ -120,15 +120,15 @@ if __name__ == '__main__':
         os.makedirs(RESULTS_FOLDER)
 
     # Check if histograms have already been calculated
-    if os.path.exists(CIELAB_HIST_NPY):
-        print(f"Loading CIELAB histograms from {CIELAB_HIST_NPY}...")
-        histograms_cielab = np.load(CIELAB_HIST_NPY, allow_pickle=True).item()
+    if os.path.exists(HLS_HIST_NPY):
+        print(f"Loading HLS histograms from {HLS_HIST_NPY}...")
+        histograms_HLS = np.load(HLS_HIST_NPY, allow_pickle=True).item()
     else:
-        print("Calculating CIELAB histograms...")
-        cielab_descriptor = ImageDescriptor('CIELAB')
-        histograms_cielab = process_images(BBDD_FOLDER, cielab_descriptor)
-        np.save(CIELAB_HIST_NPY, histograms_cielab)
-        print(f"CIELAB histograms saved as {CIELAB_HIST_NPY}")
+        print("Calculating HLS histograms...")
+        HLS_descriptor = ImageDescriptor('HLS')
+        histograms_HLS = process_images(BBDD_FOLDER, HLS_descriptor)
+        np.save(HLS_HIST_NPY, histograms_HLS)
+        print(f"HLS histograms saved as {HLS_HIST_NPY}")
 
     if os.path.exists(HSV_HIST_NPY):
         print(f"Loading HSV histograms from {HSV_HIST_NPY}...")
@@ -146,30 +146,30 @@ if __name__ == '__main__':
     with open(GT_CORRESPS_FILE, 'rb') as f:
         labels = pickle.load(f)
 
-    # Calculate similarities with CIELAB histograms
-    print("Calculating mAP@1 using CIELAB and histogram intersection...")
-    mapInterCIELAB_1 = mAPK(1, histograms_cielab, labels, "intersection", hist_type="CIELAB")
-    print("mAP@1 for CIELAB and Intersection: ", mapInterCIELAB_1)
+    # Calculate similarities with HLS histograms
+    print("Calculating mAP@1 using HLS and histogram intersection...")
+    mapInterHLS_1 = mAPK(1, histograms_HLS, labels, "intersection", hist_type="HLS")
+    print("mAP@1 for HLS and Intersection: ", mapInterHLS_1)
 
-    print("Calculating mAP@5 using CIELAB and histogram intersection...")
-    mapInterCIELAB_5 = mAPK(5, histograms_cielab, labels, "intersection", hist_type="CIELAB")
-    print("mAP@5 for CIELAB and Intersection: ", mapInterCIELAB_5)
+    print("Calculating mAP@5 using HLS and histogram intersection...")
+    mapInterHLS_5 = mAPK(5, histograms_HLS, labels, "intersection", hist_type="HLS")
+    print("mAP@5 for HLS and Intersection: ", mapInterHLS_5)
 
-    print("Calculating mAP@1 using CIELAB and Bhattacharyya distance...")
-    mapBhattCIELAB_1 = mAPK(1, histograms_cielab, labels, "bhatt", hist_type="CIELAB")
-    print("mAP@1 for CIELAB and Bhatt", mapBhattCIELAB_1)
+    print("Calculating mAP@1 using HLS and Bhattacharyya distance...")
+    mapBhattHLS_1 = mAPK(1, histograms_HLS, labels, "bhatt", hist_type="HLS")
+    print("mAP@1 for HLS and Bhatt", mapBhattHLS_1)
 
-    print("Calculating mAP@5 using CIELAB and Bhattacharyya distance...")
-    mapBhattCIELAB_5 = mAPK(5, histograms_cielab, labels, "bhatt", hist_type="CIELAB")
-    print("mAP@5 for CIELAB and Bhatt", mapBhattCIELAB_5)
+    print("Calculating mAP@5 using HLS and Bhattacharyya distance...")
+    mapBhattHLS_5 = mAPK(5, histograms_HLS, labels, "bhatt", hist_type="HLS")
+    print("mAP@5 for HLS and Bhatt", mapBhattHLS_5)
 
-    print("Calculating mAP@1 using CIELAB and Canberra distance...")
-    mapBhattCIELAB_1 = mAPK(1, histograms_cielab, labels, "canberra", hist_type="CIELAB")
-    print("mAP@1 for CIELAB and Canberra", mapBhattCIELAB_1)
+    print("Calculating mAP@1 using HLS and Canberra distance...")
+    mapBhattHLS_1 = mAPK(1, histograms_HLS, labels, "canberra", hist_type="HLS")
+    print("mAP@1 for HLS and Canberra", mapBhattHLS_1)
 
-    print("Calculating mAP@5 using CIELAB and Canberra distance...")
-    mapBhattCIELAB_5 = mAPK(5, histograms_cielab, labels, "canberra", hist_type="CIELAB")
-    print("mAP@5 for CIELAB and Canberra", mapBhattCIELAB_5)
+    print("Calculating mAP@5 using HLS and Canberra distance...")
+    mapBhattHLS_5 = mAPK(5, histograms_HLS, labels, "canberra", hist_type="HLS")
+    print("mAP@5 for HLS and Canberra", mapBhattHLS_5)
 
     # Calculate similarities with HSV histograms
     print("Calculating mAP@1 using HSV and histogram intersection...")
