@@ -16,7 +16,8 @@ GT_CORRESPS_FILE = os.path.join(QSD1_W1_FOLDER, 'gt_corresps.pkl')
 
 HLS_HIST_NPY = os.path.join(RESULTS_FOLDER, 'histograms_hls.npy')
 HSV_HIST_NPY = os.path.join(RESULTS_FOLDER, 'histograms_hsv.npy')
-
+METHOD1_FOLDER = os.path.join(RESULTS_FOLDER, 'method1')  # Output folder for HLS
+METHOD2_FOLDER = os.path.join(RESULTS_FOLDER, 'method2')  # Output folder for HSV
 
 def load_histograms(histogram_path, descriptor, folder_path):
     """Load histograms from file if available, otherwise calculate them."""
@@ -29,7 +30,6 @@ def load_histograms(histogram_path, descriptor, folder_path):
         np.save(histogram_path, histograms)
         print(f"Histograms saved to {histogram_path}")
     return histograms
-
 
 def process_images(folder_path, descriptor):
     """Calculate histograms for all images in the folder."""
@@ -48,7 +48,6 @@ def process_images(folder_path, descriptor):
                 'histograms': hist
             }
     return histograms_dict
-
 
 def calculate_similarity(histograms, descriptor, labels, K, similarity_measure):
     """Calculate mAP@K for a given similarity measure and descriptor."""
@@ -82,30 +81,34 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure):
         top_k_numbers = [int(filename[5:-4]) for filename in top_k]
         top_K.append(top_k_numbers)
 
-    return mapk(labels, top_K, K)
+    return top_K  # Return top K results (list of lists)
 
+def process_similarity_measures(histograms, descriptor, labels, k_val, method_folder):
+    """Process all combinations of similarity measures for a single descriptor."""
+    similarity_measures = ["intersection", "canberra"]
+    results = {}
 
+    for measure in similarity_measures:
+        print(f"Calculating mAP@{k_val} for {descriptor.color_space} and {measure}...")
+        top_K = calculate_similarity(histograms, descriptor, labels, k_val, measure)
 
-def process_similarity_measures(histograms_hls, histograms_hsv, labels):
-    """Process all combinations of descriptors and similarity measures."""
-    descriptors = {
-        "HLS": ImageDescriptor('HLS'),
-        "HSV": ImageDescriptor('HSV')
-    }
+        # Calculate mAP
+        map_k = mapk(labels, top_K, k_val)
+        print(f"mAP@{k_val} for {descriptor.color_space} and {measure}: {map_k}")
+        # print(f"List of lists for {descriptor.color_space} and {measure} (Top {k_val}): {top_K}\n")
 
-    similarity_measures = ["intersection", "bhatt", "canberra"]
+        # Store results
+        results[f'{descriptor.color_space}_{measure}'] = top_K
 
-    for hist_type, histograms in zip(["HLS", "HSV"], [histograms_hls, histograms_hsv]):
-        descriptor = descriptors[hist_type]
-        for measure in similarity_measures:
-            print(f"Calculating mAP@1 for {hist_type} and {measure}...")
-            mAP_1 = calculate_similarity(histograms, descriptor, labels, 1, measure)
-            print(f"mAP@1 for {hist_type} and {measure}: {mAP_1}")
+    # Save results to the corresponding method folder
+    if not os.path.exists(method_folder):
+        os.makedirs(method_folder)
 
-            print(f"Calculating mAP@5 for {hist_type} and {measure}...")
-            mAP_5 = calculate_similarity(histograms, descriptor, labels, 5, measure)
-            print(f"mAP@5 for {hist_type} and {measure}: {mAP_5}")
+    pkl_output_path = os.path.join(method_folder, 'result.pkl')
+    with open(pkl_output_path, 'wb') as f:
+        pickle.dump(results, f)
 
+    print(f"Results saved to {pkl_output_path}")
 
 if __name__ == '__main__':
     # Create results folder if it doesn't exist
@@ -120,5 +123,12 @@ if __name__ == '__main__':
     with open(GT_CORRESPS_FILE, 'rb') as f:
         labels = pickle.load(f)
 
-    # Process all combinations of descriptors and similarity measures
-    process_similarity_measures(histograms_hls, histograms_hsv, labels)
+    # Process results for HLS (method1) with k=1 and k=5
+    print("Processing results for method1 (HLS)...")
+    process_similarity_measures(histograms_hls, ImageDescriptor('HLS'), labels, k_val=1, method_folder=METHOD1_FOLDER)
+    process_similarity_measures(histograms_hls, ImageDescriptor('HLS'), labels, k_val=5, method_folder=METHOD1_FOLDER)
+
+    # Process results for HSV (method2) with k=1 and k=5
+    print("Processing results for method2 (HSV)...")
+    process_similarity_measures(histograms_hsv, ImageDescriptor('HSV'), labels, k_val=1, method_folder=METHOD2_FOLDER)
+    process_similarity_measures(histograms_hsv, ImageDescriptor('HSV'), labels, k_val=5, method_folder=METHOD2_FOLDER)
