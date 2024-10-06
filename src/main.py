@@ -1,117 +1,110 @@
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import cv2
 import numpy as np
-from descriptors import ImageDescriptor
 import pickle
+from descriptors import ImageDescriptor
 from similarity import ComputeSimilarity
-
 from evaluation.average_precision import mapk
 
-# Constants for the paths to the data (using path.join to avoid problems with the OS :D )
+# Constants for paths
 DATA_FOLDER = './data'
 BBDD_FOLDER = os.path.join(DATA_FOLDER, 'BBDD')
 QSD1_W1_FOLDER = os.path.join(DATA_FOLDER, 'qsd1_w1')
 RESULTS_FOLDER = './results'
 GT_CORRESPS_FILE = os.path.join(QSD1_W1_FOLDER, 'gt_corresps.pkl')
+
 HLS_HIST_NPY = os.path.join(RESULTS_FOLDER, 'histograms_hls.npy')
 HSV_HIST_NPY = os.path.join(RESULTS_FOLDER, 'histograms_hsv.npy')
 
 
-def process_name(name): 
-
-    """
-        Function to convert a string name into a number
-    """
-    
-    numbers = []
-    for n in name:
-        number_str = n[5:-4]
-        number = int(number_str)
-        numbers.append(number)
-    return numbers
+def load_histograms(histogram_path, descriptor, folder_path):
+    """Load histograms from file if available, otherwise calculate them."""
+    if os.path.exists(histogram_path):
+        print(f"Loading histograms from {histogram_path}...")
+        histograms = np.load(histogram_path, allow_pickle=True).item()
+    else:
+        print(f"Calculating histograms for {descriptor.color_space}...")
+        histograms = process_images(folder_path, descriptor)
+        np.save(histogram_path, histograms)
+        print(f"Histograms saved to {histogram_path}")
+    return histograms
 
 
 def process_images(folder_path, descriptor):
+    """Calculate histograms for all images in the folder."""
     histograms_dict = {}
-    
-    # Process each image in the folder
     for filename in sorted(os.listdir(folder_path)):
-        if filename.endswith(".jpg"):  # Filter only jpg files
+        if filename.endswith(".jpg"):
             image_path = os.path.join(folder_path, filename)
             image = cv2.imread(image_path)
-            
             if image is None:
                 print(f"Error loading image {image_path}")
                 continue
-            
-            # Get the descriptor histogram
             hist = descriptor.describe(image)
-            
-            # Save the histogram as an image
-            # output_image_path = os.path.join(RESULTS_FOLDER, f'{filename.split(".")[0]}_{descriptor.color_space.lower()}_hist.png')
-            # descriptor.save_histogram(hist, output_image_path)
-            
-            # Save the histogram in the npy dictionary
             histograms_dict[filename] = {
                 'color_space': descriptor.color_space,
                 'histogram_bins': descriptor.histogram_bins,
                 'histograms': hist
             }
-    
     return histograms_dict
 
 
-def mAPK(K, hist, labels, similarity_measure, hist_type):
-    """
-        Calculate mAP@K of a set of validation images (QSD1_W1) given their ground truth values
-
-        K: Number of top results to take
-        hist: histogram representations of the images in the database
-        labels: Ground truth values of the validation images
-        similarity_measure: "intersection", "bhatt" or "canberra". The type of similarity to use to compare the histograms
-        hist_type: The histogram descriptor to use to describe the histograms on the dataset and on the validation images
-
-    """
-
-    top_K = []
+def calculate_similarity(histograms, descriptor, labels, K, similarity_measure):
+    """Calculate mAP@K for a given similarity measure and descriptor."""
     measures = ComputeSimilarity()
+    top_K = []
 
     for img in sorted(os.listdir(QSD1_W1_FOLDER)):
         image_path = os.path.join(QSD1_W1_FOLDER, img)
-        
-        # Depending on which descriptor we use, select one or another
-        if hist_type == "HLS":
-            descriptor = ImageDescriptor('HLS')
-        else:
-            descriptor = ImageDescriptor('HSV')
 
-        try:
-            histogram = descriptor.describe(cv2.imread(image_path))
-        except:
+        # Check if the file is an image
+        if not img.endswith(".jpg"):
             continue
         
-        # Three different similarity measures where tested: Histogram Intersection, Canberra and Bhattacharyya
-        # For each of them, we compare the image with all images on the dataset (using is histogram descriptions)
-        # Then, the valuess are sorted on a list and only the top K are taken
-        if similarity_measure == "intersection":  
-            similarities = {key: measures.histogramIntersection(histogram, value['histograms']) for key, value in hist.items()}
-            top_K.append([k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=True)][:K])
+        try:
+            histogram = descriptor.describe(cv2.imread(image_path))
+        except Exception as e:
+            print(f"Error processing image {img}: {e}")
+            continue
+
+        if similarity_measure == "intersection":
+            similarities = {key: measures.histogramIntersection(histogram, value['histograms']) for key, value in histograms.items()}
+            reverse = True
+        elif similarity_measure == "bhatt":
+            similarities = {key: measures.bhattacharyyaDistance(histogram, value['histograms']) for key, value in histograms.items()}
+            reverse = False
         elif similarity_measure == "canberra":
-            similarities = {key: measures.canberraDistance(histogram, value['histograms']) for key, value in hist.items()}
-            top_K.append([k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=False)][:K])
-        else:
-            similarities = {key: measures.bhattacharyyaDistance(histogram, value['histograms']) for key, value in hist.items()}
-            top_K.append([k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=False)][:K])
-    
-    # Once all images are processed, we change the names from string to numbers to get the ID
-    top_K_num = [process_name(name) for name in top_K] 
+            similarities = {key: measures.canberraDistance(histogram, value['histograms']) for key, value in histograms.items()}
+            reverse = False
 
-    # After it, we calculate mAP@K for all images in the validation set
-    mapk_K = mapk(labels, top_K_num, K)
+        top_k = [k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=reverse)][:K]
+        top_k_numbers = [int(filename[5:-4]) for filename in top_k]
+        top_K.append(top_k_numbers)
 
-    return mapk_K
+    return mapk(labels, top_K, K)
+
+
+
+def process_similarity_measures(histograms_hls, histograms_hsv, labels):
+    """Process all combinations of descriptors and similarity measures."""
+    descriptors = {
+        "HLS": ImageDescriptor('HLS'),
+        "HSV": ImageDescriptor('HSV')
+    }
+
+    similarity_measures = ["intersection", "bhatt", "canberra"]
+
+    for hist_type, histograms in zip(["HLS", "HSV"], [histograms_hls, histograms_hsv]):
+        descriptor = descriptors[hist_type]
+        for measure in similarity_measures:
+            print(f"Calculating mAP@1 for {hist_type} and {measure}...")
+            mAP_1 = calculate_similarity(histograms, descriptor, labels, 1, measure)
+            print(f"mAP@1 for {hist_type} and {measure}: {mAP_1}")
+
+            print(f"Calculating mAP@5 for {hist_type} and {measure}...")
+            mAP_5 = calculate_similarity(histograms, descriptor, labels, 5, measure)
+            print(f"mAP@5 for {hist_type} and {measure}: {mAP_5}")
 
 
 if __name__ == '__main__':
@@ -119,79 +112,13 @@ if __name__ == '__main__':
     if not os.path.exists(RESULTS_FOLDER):
         os.makedirs(RESULTS_FOLDER)
 
-    # Check if histograms have already been calculated
-    if os.path.exists(HLS_HIST_NPY):
-        print(f"Loading HLS histograms from {HLS_HIST_NPY}...")
-        histograms_HLS = np.load(HLS_HIST_NPY, allow_pickle=True).item()
-    else:
-        print("Calculating HLS histograms...")
-        HLS_descriptor = ImageDescriptor('HLS')
-        histograms_HLS = process_images(BBDD_FOLDER, HLS_descriptor)
-        np.save(HLS_HIST_NPY, histograms_HLS)
-        print(f"HLS histograms saved as {HLS_HIST_NPY}")
+    # Load histograms for HLS and HSV
+    histograms_hls = load_histograms(HLS_HIST_NPY, ImageDescriptor('HLS'), BBDD_FOLDER)
+    histograms_hsv = load_histograms(HSV_HIST_NPY, ImageDescriptor('HSV'), BBDD_FOLDER)
 
-    if os.path.exists(HSV_HIST_NPY):
-        print(f"Loading HSV histograms from {HSV_HIST_NPY}...")
-        histograms_hsv = np.load(HSV_HIST_NPY, allow_pickle=True).item()
-    else:
-        print("Calculating HSV histograms...")
-        hsv_descriptor = ImageDescriptor('HSV')
-        histograms_hsv = process_images(BBDD_FOLDER, hsv_descriptor)
-        np.save(HSV_HIST_NPY, histograms_hsv)
-        print(f"HSV histograms saved as {HSV_HIST_NPY}")
-
-    print("All histograms have been successfully loaded or calculated.")
-
-    # Load the labels for the comparison
+    # Load the ground truth labels
     with open(GT_CORRESPS_FILE, 'rb') as f:
         labels = pickle.load(f)
 
-    # Calculate similarities with HLS histograms
-    print("Calculating mAP@1 using HLS and histogram intersection...")
-    mapInterHLS_1 = mAPK(1, histograms_HLS, labels, "intersection", hist_type="HLS")
-    print("mAP@1 for HLS and Intersection: ", mapInterHLS_1)
-
-    print("Calculating mAP@5 using HLS and histogram intersection...")
-    mapInterHLS_5 = mAPK(5, histograms_HLS, labels, "intersection", hist_type="HLS")
-    print("mAP@5 for HLS and Intersection: ", mapInterHLS_5)
-
-    print("Calculating mAP@1 using HLS and Bhattacharyya distance...")
-    mapBhattHLS_1 = mAPK(1, histograms_HLS, labels, "bhatt", hist_type="HLS")
-    print("mAP@1 for HLS and Bhatt", mapBhattHLS_1)
-
-    print("Calculating mAP@5 using HLS and Bhattacharyya distance...")
-    mapBhattHLS_5 = mAPK(5, histograms_HLS, labels, "bhatt", hist_type="HLS")
-    print("mAP@5 for HLS and Bhatt", mapBhattHLS_5)
-
-    print("Calculating mAP@1 using HLS and Canberra distance...")
-    mapBhattHLS_1 = mAPK(1, histograms_HLS, labels, "canberra", hist_type="HLS")
-    print("mAP@1 for HLS and Canberra", mapBhattHLS_1)
-
-    print("Calculating mAP@5 using HLS and Canberra distance...")
-    mapBhattHLS_5 = mAPK(5, histograms_HLS, labels, "canberra", hist_type="HLS")
-    print("mAP@5 for HLS and Canberra", mapBhattHLS_5)
-
-    # Calculate similarities with HSV histograms
-    print("Calculating mAP@1 using HSV and histogram intersection...")
-    mapInterHSV_1 = mAPK(1, histograms_hsv, labels, "intersection", hist_type="HSV")
-    print("mAP@1 for HSV and Intersection: ", mapInterHSV_1)
-
-    print("Calculating mAP@5 using HSV and histogram intersection...")
-    mapInterHSV_5 = mAPK(5, histograms_hsv, labels, "intersection", hist_type="HSV")
-    print("mAP@5 for HSV and Intersection: ", mapInterHSV_5)
-
-    print("Calculating mAP@1 using HSV and Bhattacharyya distance...")
-    mapBhattHSV_1 = mAPK(1, histograms_hsv, labels, "bhatt", hist_type="HSV")
-    print("mAP@1 for HSV and Bhatt: ", mapBhattHSV_1)
-
-    print("Calculating mAP@5 using HSV and Bhattacharyya distance...")
-    mapBhattHSV_5 = mAPK(5, histograms_hsv, labels, "bhatt", hist_type="HSV")
-    print("mAP@5 for HSV and Bhatt: ", mapBhattHSV_5)
-
-    print("Calculating mAP@1 using HSV and Canberra distance...")
-    mapBhattHSV_1 = mAPK(1, histograms_hsv, labels, "canberra", hist_type="HSV")
-    print("mAP@1 for HSV and Canberra: ", mapBhattHSV_1)
-
-    print("Calculating mAP@5 using HSV and Canberra distance...")
-    mapBhattHSV_5 = mAPK(5, histograms_hsv, labels, "canberra", hist_type="HSV")
-    print("mAP@5 for HSV and Canberra: ", mapBhattHSV_5)
+    # Process all combinations of descriptors and similarity measures
+    process_similarity_measures(histograms_hls, histograms_hsv, labels)
