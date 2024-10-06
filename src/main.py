@@ -22,8 +22,8 @@ HSV_HIST_NPY = os.path.join(RESULTS_FOLDER, 'histograms_hsv.npy')
 def process_name(name): 
     numbers = []
     for n in name:
-        number_str = n[5:-4]  # "00060"
-        number = int(number_str)  # Convertir a entero para eliminar los ceros a la izquierda
+        number_str = n[5:-4]
+        number = int(number_str)
         numbers.append(number)
     return numbers
 
@@ -66,6 +66,7 @@ def mAPK(K, hist, labels, similarity_measure, hist_type):
     for img in sorted(os.listdir(QSD1_W1_FOLDER)):
         image_path = os.path.join(QSD1_W1_FOLDER, img)
         
+        # Depending on which descriptor we use, select one or another
         if hist_type == "CIELAB":
             descriptor = ImageDescriptor('CIELAB')
         else:
@@ -76,6 +77,9 @@ def mAPK(K, hist, labels, similarity_measure, hist_type):
         except:
             continue
         
+        # Three different similarity measures where tested: Histogram Intersection, Canberra and Bhattacharyya
+        # For each of them, we compare the image with all images on the dataset (using is histogram descriptions)
+        # Then, the valuess are sorted on a list and only the top K are taken
         if similarity_measure == "intersection":  
             similarities = {key: measures.histogramIntersection(histogram, value['histograms']) for key, value in hist.items()}
             top_K.append([k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=True)][:K])
@@ -86,7 +90,10 @@ def mAPK(K, hist, labels, similarity_measure, hist_type):
             similarities = {key: measures.bhattacharyyaDistance(histogram, value['histograms']) for key, value in hist.items()}
             top_K.append([k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=False)][:K])
     
+    # Once all images are processed, we change the names from string to numbers to get the ID
     top_K_num = [process_name(name) for name in top_K] 
+
+    # After it, we calculate mAP@K for all images in the validation set
     mapk_K = mapk(labels, top_K_num, K)
 
     return mapk_K
