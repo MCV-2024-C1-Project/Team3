@@ -7,6 +7,7 @@ import pickle
 from descriptors import ImageDescriptor
 from similarity import ComputeSimilarity
 from evaluation.average_precision import mapk
+from background_removal import CalculateBackground
 
 # Constants for paths
 DATA_FOLDER = './data'
@@ -16,10 +17,15 @@ QST1_W1_FOLDER = os.path.join(DATA_FOLDER, 'qst1_w1')
 RESULTS_FOLDER = './results'
 GT_CORRESPS_FILE = os.path.join(QSD1_W1_FOLDER, 'gt_corresps.pkl')
 
+MASK_FOLDER = './masks'
+
 HLS_HIST_NPY = os.path.join(RESULTS_FOLDER, 'histograms_hls.npy')
 HSV_HIST_NPY = os.path.join(RESULTS_FOLDER, 'histograms_hsv.npy')
 METHOD1_FOLDER = os.path.join(RESULTS_FOLDER, 'method1')  # Output folder for HLS
 METHOD2_FOLDER = os.path.join(RESULTS_FOLDER, 'method2')  # Output folder for HSV
+
+# Print paths to verify
+
 
 def load_histograms(histogram_path, descriptor, folder_path):
     """Load histograms from file if available, otherwise calculate them."""
@@ -124,18 +130,71 @@ if __name__ == '__main__':
 
     # Process results for HLS (method1) with k=1 and k=5
     print("Processing results for method1 (HLS)...")
-    process_similarity_measures(histograms_hls, ImageDescriptor('HLS'), labels, k_val=1, method_folder=METHOD1_FOLDER)
-    process_similarity_measures(histograms_hls, ImageDescriptor('HLS'), labels, k_val=5, method_folder=METHOD1_FOLDER)
+    #process_similarity_measures(histograms_hls, ImageDescriptor('HLS'), labels, k_val=1, method_folder=METHOD1_FOLDER)
+    #process_similarity_measures(histograms_hls, ImageDescriptor('HLS'), labels, k_val=5, method_folder=METHOD1_FOLDER)
 
     # Process results for HSV (method2) with k=1 and k=5
     print("Processing results for method2 (HSV)...")
-    process_similarity_measures(histograms_hsv, ImageDescriptor('HSV'), labels, k_val=1, method_folder=METHOD2_FOLDER)
-    process_similarity_measures(histograms_hsv, ImageDescriptor('HSV'), labels, k_val=5, method_folder=METHOD2_FOLDER)
+    #process_similarity_measures(histograms_hsv, ImageDescriptor('HSV'), labels, k_val=1, method_folder=METHOD2_FOLDER)
+    #process_similarity_measures(histograms_hsv, ImageDescriptor('HSV'), labels, k_val=5, method_folder=METHOD2_FOLDER)
     
     # Process results for HLS (method1) with k=10 for the test
     print("Processing results for method1 (HLS)...")
-    process_similarity_measures(histograms_hls, ImageDescriptor('HLS'), labels, k_val=10, method_folder=METHOD1_FOLDER, images_folder=QST1_W1_FOLDER)
+    #process_similarity_measures(histograms_hls, ImageDescriptor('HLS'), labels, k_val=10, method_folder=METHOD1_FOLDER, images_folder=QST1_W1_FOLDER)
 
     # Process results for HSV (method2) with k=1 and k=10 for the test
     print("Processing results for method2 (HSV)...")
-    process_similarity_measures(histograms_hsv, ImageDescriptor('HSV'), labels, k_val=10, method_folder=METHOD2_FOLDER, images_folder=QST1_W1_FOLDER)
+    #process_similarity_measures(histograms_hsv, ImageDescriptor('HSV'), labels, k_val=10, method_folder=METHOD2_FOLDER, images_folder=QST1_W1_FOLDER)
+
+    # Calculate background images
+
+    iou_scores = []
+
+    for image_name in os.listdir("./data/qsd2_w2"):
+
+        if image_name.endswith(".jpg"):
+
+            image = cv2.imread("./data/qsd2_w2/"+image_name)
+            background = CalculateBackground(image)
+
+
+            seed_points = [
+                (0, 0),  # Top-left corner
+                (image.shape[1] - 1, 0),  # Top-right corner
+                (0, image.shape[0] - 1),  # Bottom-left corner
+                (image.shape[1] - 1, image.shape[0] - 1),  # Bottom-right corner
+            ]
+
+            edge_map = background.adaptive_thresholding(image)
+
+            #background.display_image(edge_map, "Adaptive Gaussian Thresholding mask")
+
+        # Perform region growing for each seed point and stack the masks
+            tot_mask = np.zeros(image.shape[:2], dtype=np.uint8)
+            for seed in seed_points:
+                mask = background.flood_fill_region_with_edges(seed, tolerance=5, edge_map=edge_map)
+                tot_mask = np.maximum(tot_mask, mask)
+
+            # Apply the mask to get the foreground
+            foreground = background.apply_mask(tot_mask)
+
+            final_mask = background.color_thresholding_simple(0, foreground)
+
+            tot_mask = tot_mask + final_mask
+
+            final_image = background.morphological_operations_cleanse(tot_mask)
+            final_image = cv2.bitwise_not(final_image)
+
+            cv2.imwrite(MASK_FOLDER+"/"+image_name, final_image)
+
+            # Load ground truth
+            gt = cv2.imread("./data/qsd2_w2/"+image_name[:-4]+".png", cv2.IMREAD_GRAYSCALE)
+
+            # Calculate IoU
+            intersection = np.logical_and(gt, final_image)
+            union = np.logical_or(gt, final_image)
+            iou_score = np.sum(intersection) / np.sum(union)
+
+            iou_scores.append(iou_score)
+
+    print(f"Mean IoU: {np.mean(iou_scores)}")

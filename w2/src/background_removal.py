@@ -117,11 +117,11 @@ if __name__ == "__main__":
 
     iou_scores = []
 
-    for image_name in os.listdir("C:/Users/miren/Documents/Master Computer Vision/C1 Module/Week2-pruebas/data/qsd2_w2"):
+    for image_name in os.listdir("./data/qsd2_w2"):
 
         if image_name.endswith(".jpg"):
 
-            image = cv2.imread("C:/Users/miren/Documents/Master Computer Vision/C1 Module/Week2-pruebas/data/qsd2_w2/"+image_name)
+            image = cv2.imread("./data/qsd2_w2/"+image_name)
             background = CalculateBackground(image)
 
 
@@ -151,22 +151,17 @@ if __name__ == "__main__":
 
             final_image = background.morphological_operations_cleanse(tot_mask)
             final_image = cv2.bitwise_not(final_image)
-            # USe the mask to extract the foreground
-            foreground = background.apply_mask(final_image)
-            cv2.imwrite("C:/Users/miren/Documents/Master Computer Vision/C1 Module/Week2-pruebas/data/results/"+image_name, final_image)
+
+            cv2.imwrite("./data/results/"+image_name, final_image)
 
             # Load ground truth
-            gt = cv2.imread("C:/Users/miren/Documents/Master Computer Vision/C1 Module/Week2-pruebas/data/qsd2_w2/"+image_name[:-4]+".png", cv2.IMREAD_GRAYSCALE)
+            gt = cv2.imread("./data/qsd2_w2/"+image_name[:-4]+".png", cv2.IMREAD_GRAYSCALE)
 
             # Calculate IoU
             intersection = np.logical_and(gt, final_image)
             union = np.logical_or(gt, final_image)
             iou_score = np.sum(intersection) / np.sum(union)
-            print(f"Image: {image_name}, IoU: {iou_score}")
 
             iou_scores.append(iou_score)
-
-            
-            cv2.imwrite("C:/Users/miren/Documents/Master Computer Vision/C1 Module/Week2-pruebas/data/results/"+image_name[:-4]+"_fore.jpg", foreground)
 
     print(f"Mean IoU: {np.mean(iou_scores)}")
