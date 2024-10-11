@@ -50,7 +50,8 @@ class CalculateBackground():
     def adaptive_thresholding(self,image):
         """Apply adaptive thresholding to the image."""
         gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        return cv2.adaptiveThreshold(gray_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+        blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
+        return cv2.adaptiveThreshold(blurred_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
 
     def flood_fill_region_with_edges(self, seed_point, tolerance=20, edge_map=None):
         """Perform region growing using OpenCV's floodFill and stop at edges."""
