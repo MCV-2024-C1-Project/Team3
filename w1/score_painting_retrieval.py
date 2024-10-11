@@ -29,7 +29,7 @@ from ml_metrics import mapk,apk
 #from sklearn.metrics import jaccard_similarity_score
 from sklearn.metrics import jaccard_score
 import evaluation.evaluation_funcs as evalf
-import geometry_utils as gu
+import w1.geometry_utils as gu
 from operator import itemgetter
 from Levenshtein import distance
 

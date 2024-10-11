@@ -8,10 +8,10 @@ env/
 .venv/
 
 # Data files (BBDD and query datasets)
-data/*
+*/data/*
 
 # Results (generated output files)
-results/
+*/results/
 
 # Logs
 *.log
