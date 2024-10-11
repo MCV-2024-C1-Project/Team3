@@ -115,6 +115,39 @@ def process_similarity_measures(histograms, descriptor, labels, k_val, method_fo
 
     print(f"Results saved to {pkl_output_path}")
 
+def compute_confusion_matrix(ground_truth, predicted):
+    # Ensure ground_truth and predicted are NumPy arrays of the same shape
+    ground_truth = np.asarray(ground_truth)
+    predicted = np.asarray(predicted)
+    
+    if ground_truth.shape != predicted.shape:
+        raise ValueError("The ground truth and predicted masks must have the same shape.")
+    
+    # Compute the confusion matrix components
+    TP = np.sum((ground_truth == 255) & (predicted == 255))
+    TN = np.sum((ground_truth == 0) & (predicted == 0))
+    FP = np.sum((ground_truth == 0) & (predicted == 255))
+    FN = np.sum((ground_truth == 255) & (predicted == 0))
+    
+    return TP, TN, FP, FN
+
+def compute_precision_recall_f1(ground_truth, predicted):
+
+    TP, TN, FP, FN = compute_confusion_matrix(ground_truth, predicted)
+    # Calculate Precision
+    precision = TP / (TP + FP) if (TP + FP) > 0 else 0
+    
+    # Calculate Recall
+    recall = TP / (TP + FN) if (TP + FN) > 0 else 0
+    
+    # Calculate F1 Score
+    if precision + recall > 0:
+        f1_score = 2 * (precision * recall) / (precision + recall)
+    else:
+        f1_score = 0
+    
+    return precision, recall, f1_score
+
 if __name__ == '__main__':
     # Create results folder if it doesn't exist
     if not os.path.exists(RESULTS_FOLDER):
@@ -149,6 +182,9 @@ if __name__ == '__main__':
     # Calculate background images
 
     iou_scores = []
+    precisions = []
+    recalls = []
+    f1s = []
 
     for image_name in os.listdir("./data/qsd2_w2"):
 
@@ -195,6 +231,15 @@ if __name__ == '__main__':
             union = np.logical_or(gt, final_image)
             iou_score = np.sum(intersection) / np.sum(union)
 
+            precision, recall, f1 = compute_precision_recall_f1(gt, final_image)
+            precisions.append(precision)
+            recalls.append(recall)
+            f1s.append(f1)
+
+
             iou_scores.append(iou_score)
 
     print(f"Mean IoU: {np.mean(iou_scores)}")
+    print(f"Mean Precision: {np.mean(precisions)}")
+    print(f"Mean Recall: {np.mean(recalls)}")
+    print(f"Mean F1 Score: {np.mean(f1s)}")
