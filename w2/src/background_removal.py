@@ -107,9 +107,9 @@ class CalculateBackground():
 
         # Optionally, apply closing to fill small holes (dilation followed by erosion)
         cleaned_mask = cv2.morphologyEx(final_mask, cv2.MORPH_CLOSE, kernel)
-        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 1)))
+        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (10, 1)))
 
-        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_DILATE, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
+        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
         
         return cleaned_mask
     
