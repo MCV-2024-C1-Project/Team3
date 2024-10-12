@@ -279,11 +279,13 @@ if __name__ == '__main__':
 
     # Process similarity measures using the HLS descriptor and the top-K similarity
     process_similarity_measures(histograms_hls, ImageDescriptor('HLS'), labels, k_val=1, method_folder=METHOD1_FOLDER, images_folder=qsd_folder)
+    process_similarity_measures(histograms_hls, ImageDescriptor('HLS'), labels, k_val=5, method_folder=METHOD1_FOLDER, images_folder=qsd_folder)
 
     print("Processing similarity using method2 (HSV)...")
 
     # Process similarity measures using the HSV descriptor and the top-K similarity
     process_similarity_measures(histograms_hsv, ImageDescriptor('HSV'), labels, k_val=1, method_folder=METHOD2_FOLDER, images_folder=qsd_folder)
+    process_similarity_measures(histograms_hsv, ImageDescriptor('HSV'), labels, k_val=5, method_folder=METHOD2_FOLDER, images_folder=qsd_folder)
 
     print("Processing similarity for test 1 using method1 (HLS)...")
     # Process similarity measures using the HLS descriptor and the top-K similarity

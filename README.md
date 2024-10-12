@@ -11,26 +11,44 @@ Team3/
 │
 ├── data/                   # Folder for datasets (not included in the repo)
 │   ├── BBDD/               # Folder with museum images
-│   └── qsd1_w1/            # Folder with query images (QSD1)
+│   ├── qsd1_w1/            # Folder with query images (QSD1)
+│   └── qsd2_w1/            # Folder with query images with background(QSD2)
 │
-├── evaluation/                 
-│   ├── bbox_iou.py             
-│   └── evaluation_funcs.py   
+├── w1                      # Week1 project folder
+│   ├── evaluation/                 
+│   │   ├── bbox_iou.py    
+│   │   ├── average_precision.py        
+│   │   └── evaluation_funcs.py     
+│   │
+│   ├── src/                     # Main source code
+│   │   ├── descriptors.py       # Functions to compute image descriptors
+│   │   ├── similarity.py        # Functions to compute similarity measures
+│   │   └── main.py              # Main script to run the entire pipeline
+│   ├── geometry_utils.py
+│   ├── score_painting_retrieval.py
+│   └── test_submission.py
 │
-├── src/                     # Main source code
-│   ├── descriptors.py       # Functions to compute image descriptors
-│   ├── similarity.py        # Functions to compute similarity measures
-│   └── main.py              # Main script to run the entire pipeline
+├── w2                      # Week2 project folder
+│   ├── evaluation/                 
+│   │   ├── bbox_iou.py    
+│   │   ├── average_precision.py        
+│   │   └── evaluation_funcs.py     
+│   │
+│   ├── src/                     # Main source code
+│   │   ├── background_removal.py       # Functions to remove the background
+│   │   ├── descriptors.py              # Functions to compute image descriptors
+│   │   ├── similarity.py               # Functions to compute similarity measures
+│   │   └── main.py                     # Main script to run the entire pipeline
+│   ├── geometry_utils.py
+│   ├── score_painting_retrieval.py
+│   └── test_submission.py
 │
 ├── utils/                 
 │   ├── plot_results.py             
 │   └── print_dict.py   
 │
-├── geometry_utils.py
 ├── README.md               
-├── requirements.txt        
-├── score_painting_retrieval.py
-└── test_submission.py
+└── requirements.txt        
 
 
 ```
@@ -113,14 +131,23 @@ Since the datasets are too large to be uploaded to GitHub, you will need to manu
 
 ### 5. Run the Project
 
-Once the datasets are organized and the dependencies are installed, you can run the project with the following command:
+Once the datasets are organized and the dependencies are installed, you can run the project as follows.
+
+To execute Week1 project, run this command
 
 ```bash
-python src/main.py
+python w1/src/main.py
 ```
 
 This will run the image retrieval system, generate the descriptors, compute the similarities, and output the results.
 
+To execute Week2 project, run this command
+
+```bash
+python w2/src/main.py <query_images_folder_path>
+```
+
+This will run the image retrieval system, generate the descriptors, remove the background if neccesary, compute the similarities, and output the results.
 
 ### 7. Deactivate the Virtual Environment
 
