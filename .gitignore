@@ -9,8 +9,11 @@ env/
 
 # Data files (BBDD and query datasets)
 */data/*
-*/masks/
 data/*
+
+# Mask files
+*/masks/
+masks/*
 
 # Results (generated output files)
 */results/
