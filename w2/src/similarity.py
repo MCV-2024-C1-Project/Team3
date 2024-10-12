@@ -19,11 +19,11 @@ class ComputeSimilarity:
     # First normalize the histograms, and then compute the similarity for each dimension of histogram
     # Then, the average of each value is done.
     def histogramIntersection(self,h1, h2):
-        if h1.ndim==3:
+        if np.array(h1).ndim==3:
             similarity_values = [
                 self.histogramIntersectionGrayScale(
-                    normalizeHistogram(h1), 
-                    normalizeHistogram(h2)) for c1, c2 in zip(h1, h2)]
+                    normalizeHistogram(c1), 
+                    normalizeHistogram(c2)) for c1, c2 in zip(h1, h2)]
         else:
             similarity_values = [
             self.histogramIntersectionGrayScale(
@@ -59,7 +59,7 @@ class ComputeSimilarity:
     # First normalize the histograms, and then compute the similarity for each dimension of histogram
     # Then, the average of each value is done.
     def canberraDistance(self,h1, h2):
-        if h1.ndim==3:
+        if np.array(h1).ndim==3:
             similarity_values = [
                 self.canberraDistanceGrayScale(
                     normalizeHistogram(c1), 

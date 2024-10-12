@@ -91,13 +91,13 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure,d
 
         elif structure=='block' or structure=='heriarchical':
             if similarity_measure == "intersection":                
-                similarities = {key: measures.histogramIntersection(histogram[level]['histogram'], value['histograms'][level]['histogram']) for key, value in histograms.items()}
+                similarities = {key: measures.histogramIntersection(np.array(histogram[level]['histogram'],dtype=np.float32).flatten(), np.array(value['histograms'][level]['histogram'],dtype=np.float32).flatten()) for key, value in histograms.items()}
                 reverse = True
             elif similarity_measure == "bhatt":
                 similarities = {key: measures.bhattacharyyaDistance(histogram[level]['histogram'], value['histograms'][level]['histogram']) for key, value in histograms.items()}
                 reverse = False
             elif similarity_measure == "canberra":
-                similarities = {key: measures.canberraDistance(histogram[level]['histogram'], value['histograms'][level]['histogram']) for key, value in histograms.items()}
+                similarities = {key: measures.canberraDistance(np.array(histogram[level]['histogram'],dtype=np.float32).flatten(), np.array(value['histograms'][level]['histogram']),dtype=np.float32.flatten()) for key, value in histograms.items()}
                 reverse = False
 
             top_k = [k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=reverse)][:K]

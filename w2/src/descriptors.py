@@ -103,7 +103,7 @@ class ImageDescriptor:
 
                     for img in subimgs:
                         if dimension=='3D':
-                            h = cv2.calcHist([img.astype(np.uint8)], [0,1,2], None, [256,256,256], [0, 256, 0, 256, 0, 256])
+                            h = cv2.calcHist([img.astype(np.float32)], [0,1,2], None, [128,128,128], [0, 256, 0, 256, 0, 256])
                             hist.append(h)
 
                         elif dimension=='2D':
@@ -117,7 +117,7 @@ class ImageDescriptor:
                
                 histograms[b] = {
                     'level': b,
-                    'histogram': np.array(hist).flatten()
+                    'histogram': hist
                 }
         
         
