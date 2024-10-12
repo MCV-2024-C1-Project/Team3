@@ -100,69 +100,16 @@ class CalculateBackground():
     def morphological_operations_cleanse(self, final_mask):
 
         # Morphological operations to eliminate noise
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 1))
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (100, 1))
 
         # Apply opening to remove small noise (erosion followed by dilation)
         #cleaned_mask = cv2.morphologyEx(final_mask, cv2.MORPH_OPEN, kernel)
-
         # Optionally, apply closing to fill small holes (dilation followed by erosion)
-        cleaned_mask = cv2.morphologyEx(final_mask, cv2.MORPH_CLOSE, kernel)
-        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (10, 1)))
+        cleaned_mask = cv2.morphologyEx(final_mask, cv2.MORPH_OPEN, kernel)
+        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (100, 100)))
 
-        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
+        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (20, 10)))
+
         
         return cleaned_mask
     
-
-if __name__ == "__main__":
-
-    iou_scores = []
-
-    for image_name in os.listdir("./data/qsd2_w2"):
-
-        if image_name.endswith(".jpg"):
-
-            image = cv2.imread("./data/qsd2_w2/"+image_name)
-            background = CalculateBackground(image)
-
-
-            seed_points = [
-                (0, 0),  # Top-left corner
-                (image.shape[1] - 1, 0),  # Top-right corner
-                (0, image.shape[0] - 1),  # Bottom-left corner
-                (image.shape[1] - 1, image.shape[0] - 1),  # Bottom-right corner
-            ]
-
-            edge_map = background.adaptive_thresholding(image)
-
-            #background.display_image(edge_map, "Adaptive Gaussian Thresholding mask")
-
-        # Perform region growing for each seed point and stack the masks
-            tot_mask = np.zeros(image.shape[:2], dtype=np.uint8)
-            for seed in seed_points:
-                mask = background.flood_fill_region_with_edges(seed, tolerance=5, edge_map=edge_map)
-                tot_mask = np.maximum(tot_mask, mask)
-
-            # Apply the mask to get the foreground
-            foreground = background.apply_mask(tot_mask)
-
-            final_mask = background.color_thresholding_simple(0, foreground)
-
-            tot_mask = tot_mask + final_mask
-
-            final_image = background.morphological_operations_cleanse(tot_mask)
-            final_image = cv2.bitwise_not(final_image)
-
-            cv2.imwrite("./data/results/"+image_name, final_image)
-
-            # Load ground truth
-            gt = cv2.imread("./data/qsd2_w2/"+image_name[:-4]+".png", cv2.IMREAD_GRAYSCALE)
-
-            # Calculate IoU
-            intersection = np.logical_and(gt, final_image)
-            union = np.logical_or(gt, final_image)
-            iou_score = np.sum(intersection) / np.sum(union)
-
-            iou_scores.append(iou_score)
-
-    print(f"Mean IoU: {np.mean(iou_scores)}")
