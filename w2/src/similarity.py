@@ -13,18 +13,19 @@ class ComputeSimilarity:
     
     # Histogram Intersection implementation (1D)
     def histogramIntersectionGrayScale(self,h1, h2):
-        # print(np.shape(h1))
-        # print('H2')
-        # print(np.shape(h2))
         return cv2.compareHist(h1, h2, cv2.HISTCMP_INTERSECT)
     
     # Histogram Intersection implementation (3D)
     # First normalize the histograms, and then compute the similarity for each dimension of histogram
     # Then, the average of each value is done.
     def histogramIntersection(self,h1, h2):
-
-
-        similarity_values = [
+        if h1.ndim==3:
+            similarity_values = [
+                self.histogramIntersectionGrayScale(
+                    normalizeHistogram(h1), 
+                    normalizeHistogram(h2)) for c1, c2 in zip(h1, h2)]
+        else:
+            similarity_values = [
             self.histogramIntersectionGrayScale(
                 normalizeHistogram(h1), 
                 normalizeHistogram(h2))]
@@ -58,11 +59,17 @@ class ComputeSimilarity:
     # First normalize the histograms, and then compute the similarity for each dimension of histogram
     # Then, the average of each value is done.
     def canberraDistance(self,h1, h2):
-
-        similarity_values = [
-            self.canberraDistanceGrayScale(
-                normalizeHistogram(h1), 
-                normalizeHistogram(h2))]
+        if h1.ndim==3:
+            similarity_values = [
+                self.canberraDistanceGrayScale(
+                    normalizeHistogram(c1), 
+                    normalizeHistogram(c2)) for c1, c2 in zip(h1, h2)]
+            
+        else:
+            similarity_values = [
+                self.canberraDistanceGrayScale(
+                    normalizeHistogram(h1), 
+                    normalizeHistogram(h2))]
         tot_similarity = sum(similarity_values) / len(similarity_values)
 
         return tot_similarity

@@ -61,7 +61,6 @@ class ImageDescriptor:
 
         # Define the ranges for each channel
         ranges = self.COLOR_RANGES[self.color_space]
-
         
         if structure=='simple':
             histograms = []
@@ -84,26 +83,27 @@ class ImageDescriptor:
             for b in range(3):
                 hist=[]
                 if b==0:
-                    if dimension=='3D':
-                        h= cv2.calcHist([image], [0,1,2], None, [256,256,256], [0, 256, 0, 256, 0, 256])
-                        hist.append(h)
+                    # if dimension=='3D':
+                    #     print(np.shape(image))
+                    #     h= cv2.calcHist([image], [0,1,2], None, [128,128,128], [0, 256, 0, 256, 0, 256])
+                    #     hist.append(h)
 
-                    elif dimension=='2D':
-                        for i in range(3):
-                            h = cv2.calcHist([image], [i], None, [self.histogram_bins[i]], ranges[i])
-                            hist.append(h.squeeze())
+                    # elif dimension=='2D':
+                    #     for i in range(3):
+                    #         h = cv2.calcHist([image], [i], None, [self.histogram_bins[i]], ranges[i])
+                    #         hist.append(h.squeeze())
 
-                    else:
-                        raise ValueError(f"Unsupported dimension: {dimension}")
-                    
+                    # else:
+                    #     raise ValueError(f"Unsupported dimension: {dimension}")
+                    pass
                 else:
 
                     subimgs=self.block(image,2**b)
+                    # subimgs=cv2.split(image)
 
                     for img in subimgs:
-
                         if dimension=='3D':
-                            h = cv2.calcHist([img], [0,1,2], None, [8,8,8],  [0, 256, 0, 256, 0, 256])
+                            h = cv2.calcHist([img.astype(np.uint8)], [0,1,2], None, [256,256,256], [0, 256, 0, 256, 0, 256])
                             hist.append(h)
 
                         elif dimension=='2D':
@@ -145,7 +145,7 @@ class ImageDescriptor:
                     for img in subimgs:
 
                         if dimension=='3D':
-                            h = cv2.calcHist([img], [0,1,2], None, [self.histogram_bins], ranges)
+                            h = cv2.calcHist([img.astype(np.uint8)], [0,1,2], None, [self.histogram_bins], ranges)
                             hist.append(h)
 
                         elif dimension=='2D':

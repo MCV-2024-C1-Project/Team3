@@ -23,7 +23,7 @@ METHOD2_FOLDER = os.path.join(RESULTS_FOLDER, 'method2')  # Output folder for HS
 
 def load_histograms(dimension,structure, descriptor, folder_path):
     """Load histograms from file if available, otherwise calculate them."""
-    histogram_path='_'.join(('histograms',dimension,descriptor.color_space,structure))+'.npy' #ex: histograms_3D_HSV_heriarchical.npy
+    histogram_path='_'.join(('results/histograms',dimension,descriptor.color_space,structure))+'.npy' #ex: histograms_3D_HSV_heriarchical.npy
     if os.path.exists(histogram_path):
         print(f"Loading histograms from {histogram_path}...")
         histograms = np.load(histogram_path, allow_pickle=True).item()
@@ -161,9 +161,9 @@ if __name__ == '__main__':
         labels = pickle.load(f)
     
     # Load histograms for HLS and HSV
-    for dimension in ['3D']:
+    for dimension in ['3D','2D']:
         for colorspace in ['HSV','HLS']:
-            for structure in ['simple', 'block','heriarchical']:
+            for structure in ['block','heriarchical']:
                 histograms = load_histograms(dimension,structure, ImageDescriptor(colorspace), BBDD_FOLDER)
 
     
