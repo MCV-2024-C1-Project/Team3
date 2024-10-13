@@ -1,4 +1,3 @@
-
 # Content-Based Image Retrieval
 
 This project implements a **Content Based Image Retrieval** system that searches for similar images based on color descriptors. The system is developed in Python as part of the course "Introduction to Human and Computer Vision."
@@ -92,16 +91,27 @@ Team3/
 
 ---
 
-## Weekly development
+## Weekly Development
 
 ### Week 1: Image Retrieval Based on Color Histograms
 **Goal**: Retrieve the K most similar museum images for each query image based on color histograms.
 
 #### Tasks:
-1. **Image Descriptors**: Compute 1D color histograms for the museum (BBDD) and query datasets (QSD1).
-2. **Similarity Measures**: Implement and compare similarity measures like Euclidean distance, histogram intersection, and others.
-3. **Retrieval System**: Implement the retrieval system to return the top K results.
-4. **Evaluation**: Submit the results for the QST1 blind test set.
+1. **Task 1**: Compute image descriptors for both the museum dataset (BBDD) and the query dataset (QSD1). You can use up to two methods.  
+   Example: Color Histograms (gray level or concatenated color component histograms in RGB, CieLab, YCbCr, HSV, etc.). It is compulsory to use 1D histograms.
+2. **Task 2**: Implement different similarity measures to compare images, such as:
+    - Euclidean distance
+    - L1 distance
+    - χ² distance
+    - Histogram intersection
+    - Hellinger kernel
+3. **Task 3**: For each image in QSD1, compute the similarity to the museum images (BBDD) and return the top K images (highest score, lowest distance). Evaluation is performed using *mAP@K* (mean Average Precision at K).
+4. **Task 4**: Submit your results for a "blind" competition in QST1. Create a Python list of lists with the image IDs (integers).  
+   Example format:  
+   ``` 
+   Query: [[q1], [q2], [q3]]  
+   Result: [[7,2], [76,4], [43,12]]  
+   ```
 
 #### To run the Week 1 system:
 ```bash
@@ -109,15 +119,18 @@ python w1/src/main.py
 ```
 This will execute the image retrieval system for Week 1 using color histograms.
 
+
 ---
 
 ### Week 2: Background Removal and Advanced Descriptors
 **Goal**: Retrieve paintings while handling images with background and implement more advanced histogram descriptors.
 
 #### Tasks:
-1. **3D/2D Histograms**: Implement both block-based and hierarchical histograms for retrieval.
-2. **Background Removal**: Implement background removal techniques and compute descriptors only on foreground pixels.
-3. **Evaluation**: Submit retrieval results for the QST2 dataset.
+1. **Task 1**: Implement 3D / 2D and block and hierarchical histograms. Block-based histograms divide the image into non-overlapping blocks, compute histograms per block, and concatenate histograms. Spatial pyramid representation: compute block histograms at different levels and concatenate representations.
+2. **Task 2**: Test the query system using query set QSD1-W2 (development) and evaluate retrieval results using your best performing descriptor. Compare results against the best descriptor from Week 1.
+3. **Task 3**: For each image in the QSD2-W2, remove the background using the background color (e.g., model background distribution, use color thresholds). Create a binary mask to evaluate the method. Compute descriptors on the foreground pixels. Do not use contour detectors, object detectors, etc., just color!
+4. **Task 4**: Evaluate the background removal using precision, recall, and F1-measure.
+5. **Task 5**: For QSD2-W2, remove the background, apply the retrieval system, and return correspondences for each painting. Only retrieval is evaluated.
 
 #### To run the Week 2 system:
 ```bash
