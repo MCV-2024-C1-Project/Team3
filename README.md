@@ -1,6 +1,21 @@
-# Content Based Image Retrieval
+
+# Content-Based Image Retrieval
 
 This project implements a **Content Based Image Retrieval** system that searches for similar images based on color descriptors. The system is developed in Python as part of the course "Introduction to Human and Computer Vision."
+
+## Table of Contents
+1. [Project Structure](#project-structure)
+2. [Setup Instructions](#setup-instructions)
+    - [Clone the Repository](#1-clone-the-repository)
+    - [Create Virtual Environment](#2-create-a-virtual-environment-with-venv)
+    - [Install Dependencies](#3-install-dependencies)
+    - [Organize the Datasets](#4-organize-the-datasets)
+3. [Weekly development](#weekly-development)
+    - [Week 1: Image Retrieval Based on Color Histograms](#week-1-image-retrieval-based-on-color-histograms)
+    - [Week 2: Background Removal and Advanced Descriptors](#week-2-background-removal-and-advanced-descriptors)
+4. [Deactivating the Virtual Environment](#deactivating-the-virtual-environment)
+
+---
 
 ## Project Structure
 
@@ -9,56 +24,31 @@ The project is organized into several folders with a modular structure to make i
 ```
 Team3/
 │
-├── data/                   # Folder for datasets (not included in the repo)
-│   ├── BBDD/               # Folder with museum images
-│   ├── qsd1_w1/            # Folder with query images (QSD1)
-│   └── qsd2_w1/            # Folder with query images with background(QSD2)
+├── w1                          # Week 1 project folder
+│   ├── src/                    # Source code for Week 1
+│   ├── evaluation/             # Evaluation scripts
+│   ├── data/                   # Folder for datasets (not included in the repo)
+│   │   ├── BBDD/               # Folder with museum images
+│   │   └── qsd1_w1/            # Folder with query images (QSD1)
+│   ├── test_submission.py      # Submission test scripts for Week 1
+│   └── utils/                 
+│       ├── plot_results.py             
+│       └── print_dict.py 
 │
-├── w1                      # Week1 project folder
-│   ├── evaluation/                 
-│   │   ├── bbox_iou.py    
-│   │   ├── average_precision.py        
-│   │   └── evaluation_funcs.py     
-│   │
-│   ├── src/                     # Main source code
-│   │   ├── descriptors.py       # Functions to compute image descriptors
-│   │   ├── similarity.py        # Functions to compute similarity measures
-│   │   └── main.py              # Main script to run the entire pipeline
-│   ├── geometry_utils.py
-│   ├── score_painting_retrieval.py
-│   └── test_submission.py
+├── wX                           # Week X project folder (same structure as w1)
+│   └── ...
 │
-├── w2                      # Week2 project folder
-│   ├── evaluation/                 
-│   │   ├── bbox_iou.py    
-│   │   ├── average_precision.py        
-│   │   └── evaluation_funcs.py     
-│   │
-│   ├── src/                     # Main source code
-│   │   ├── background_removal.py       # Functions to remove the background
-│   │   ├── descriptors.py              # Functions to compute image descriptors
-│   │   ├── similarity.py               # Functions to compute similarity measures
-│   │   └── main.py                     # Main script to run the entire pipeline
-│   ├── geometry_utils.py
-│   ├── score_painting_retrieval.py
-│   └── test_submission.py
-│
-├── utils/                 
-│   ├── plot_results.py             
-│   └── print_dict.py   
-│
+...
+|
 ├── README.md               
 └── requirements.txt        
-
-
 ```
+
+---
 
 ## Setup Instructions
 
-To set up the environment and dependencies for the project, follow these steps:
-
 ### 1. Clone the Repository
-
 First, clone this repository to your local machine:
 
 ```bash
@@ -67,104 +57,91 @@ cd Team3
 ```
 
 ### 2. Create a Virtual Environment with `venv`
-
-To manage dependencies, we will create a virtual environment using Python’s built-in tool `venv`.
+To manage dependencies, create a virtual environment using Python’s built-in tool `venv`.
 
 #### Create the virtual environment:
-
-Run the following command in the root of your project directory to create a new virtual environment called `env`:
-
 ```bash
 python -m venv env
 ```
 
-This will create a new folder `env/` in your project directory where the virtual environment will be stored.
-
 #### Activate the virtual environment:
-
-- **On Windows**:
-  ```bash
-  env\Scripts\activate
-  ```
-
-- **On macOS/Linux**:
-  ```bash
-  source env/bin/activate
-  ```
-
-When the virtual environment is activated, you’ll see `(env)` at the beginning of your terminal prompt.
+- **On Windows**: 
+```bash
+env\Scripts\activate
+```
+- **On macOS/Linux**: 
+```bash
+source env/bin/activate
+```
 
 ### 3. Install Dependencies
-
-With the virtual environment activated, install the project dependencies from the `requirements.txt` file:
+With the virtual environment activated, install the project dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 4. Organize the Datasets
+Download the datasets from the course platform and place them in the `data/` folder as follows:
+```
+Team3/
+├── wX/                         # Week X folder
+│   └── data/                     
+│       ├── qsd1_wX/            # Query images 1 for Week X
+│       └── qsd2_wX/            # Query images 2 for Week X
+```
 
-Since the datasets are too large to be uploaded to GitHub, you will need to manually download them from the course platform.
+---
 
-1. **Download the datasets**:
-   - **BBDD**: Museum image collection.
-   - **qsd1_w1**: Query images for evaluation.
+## Weekly development
 
-2. **Place the datasets in the `data/` folder**:
-   - Museum images should go into `data/BBDD/`.
-   - Query images should go into `data/qsd1_w1/`.
+### Week 1: Image Retrieval Based on Color Histograms
+**Goal**: Retrieve the K most similar museum images for each query image based on color histograms.
 
-   Your `data/` folder should look like this:
+#### Tasks:
+1. **Image Descriptors**: Compute 1D color histograms for the museum (BBDD) and query datasets (QSD1).
+2. **Similarity Measures**: Implement and compare similarity measures like Euclidean distance, histogram intersection, and others.
+3. **Retrieval System**: Implement the retrieval system to return the top K results.
+4. **Evaluation**: Submit the results for the QST1 blind test set.
 
-   ```
-   Team3/
-   ├── data/
-   │   ├── BBDD/
-   │   │   ├── 00001.jpg
-   │   │   ├── 00002.jpg
-   │   │   └── ...
-   │   └── qsd1_w1/
-   │       ├── 00001.jpg
-   │       ├── 00002.jpg
-   │       └── ...
-   ```
-
-### 5. Run the Project
-
-Once the datasets are organized and the dependencies are installed, you can run the project as follows.
-
-To execute Week1 project, run this command
-
+#### To run the Week 1 system:
 ```bash
 python w1/src/main.py
 ```
+This will execute the image retrieval system for Week 1 using color histograms.
 
-This will run the image retrieval system, generate the descriptors, compute the similarities, and output the results.
+---
 
-To execute Week2 project, run this command
+### Week 2: Background Removal and Advanced Descriptors
+**Goal**: Retrieve paintings while handling images with background and implement more advanced histogram descriptors.
 
+#### Tasks:
+1. **3D/2D Histograms**: Implement both block-based and hierarchical histograms for retrieval.
+2. **Background Removal**: Implement background removal techniques and compute descriptors only on foreground pixels.
+3. **Evaluation**: Submit retrieval results for the QST2 dataset.
+
+#### To run the Week 2 system:
 ```bash
 python w2/src/main.py <query_images_folder_path> <dimension> <colorspace> <structure> <measure>
 ```
 Where:
-- `<query_images_folder_path>` is the path to the query images folder.
-- `<dimension>` : 3D | 2D
-- `<colorspace>` : HLS | HSV
-- `<structure>` : block | heriarchical | simple
-- `<measure>` : intersection | canberra 
+- `<query_images_folder_path>`: Path to the folder containing query images.
+- `<dimension>`: 3D or 2D histogram.
+- `<colorspace>`: HLS, HSV, etc.
+- `<structure>`: block or hierarchical.
+- `<measure>`: intersection, canberra, etc.
 
-This will run the image retrieval system, generate the descriptors, remove the background if neccesary, compute the similarities, and output the results.
+This will run the Week 2 retrieval system with the specified configurations.
 
-### 7. Deactivate the Virtual Environment
+---
 
-When you are done working on the project, you can deactivate the virtual environment by running:
+## Deactivating the Virtual Environment
+After completing your work, deactivate the virtual environment:
 
 ```bash
 deactivate
 ```
 
-This will return your terminal to its default Python environment.
+---
 
-
-
-
+This structure should provide clear guidance on how to set up and run the project for both weeks, with organized tasks and descriptions for each week’s assignments.
