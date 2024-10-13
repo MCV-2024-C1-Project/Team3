@@ -40,15 +40,11 @@ GT_CORRESPS_FILE = os.path.join(qsd_folder, 'gt_corresps.pkl')
 MASK_FOLDER = './masks'
 NO_BG_FOLDER = './data/qsd2_w2_no_bg'
 
-HLS_HIST_NPY = os.path.join(RESULTS_FOLDER, 'histograms_hls.npy')
-HSV_HIST_NPY = os.path.join(RESULTS_FOLDER, 'histograms_hsv.npy')
-METHOD1_FOLDER = os.path.join(RESULTS_FOLDER, 'method1')  # Output folder for HLS
-METHOD2_FOLDER = os.path.join(RESULTS_FOLDER, 'method2')  # Output folder for HSV
-
-# Print paths to verify
+METHOD1_FOLDER = os.path.join(RESULTS_FOLDER, 'method1')  # Output folder for method1
+METHOD2_FOLDER = os.path.join(RESULTS_FOLDER, 'method2')  # Output folder for method2
 
 
-def load_histograms(dimension, structure, descriptor, folder_path):
+def load_histograms(histogram_path, descriptor, folder_path):
     """Load histograms from file if available, otherwise calculate them."""
     histogram_path = '_'.join(('results/histograms', dimension, descriptor.color_space, structure)) + '.npy'
     if os.path.exists(histogram_path):
@@ -103,8 +99,14 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
             if similarity_measure == "intersection":
                 similarities = {key: measures.histogramIntersection(histogram, value['histograms']) for key, value in histograms.items()}
                 reverse = True
-            elif similarity_measure == "canberra":
-                similarities = {key: measures.canberraDistance(histogram, value['histograms']) for key, value in histograms.items()}
+            elif similarity_measure == "bhattacharyya":
+                similarities = {key: measures.bhattacharyyaDistance(histogram, value['histograms']) for key, value in histograms.items()}
+                reverse = True
+            elif similarity_measure == "Chisqr":
+                similarities = {key: measures.histogramChisqr(histogram, value['histograms']) for key, value in histograms.items()}
+                reverse = True
+            elif similarity_measure == "Correl":
+                similarities = {key: measures.histogramCorrel(histogram, value['histograms']) for key, value in histograms.items()}
                 reverse = False
 
             top_k = [k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=reverse)][:K]
@@ -117,11 +119,22 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
                                                                      np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
                                 for key, value in histograms.items()}
                 reverse = True
-            elif similarity_measure == "canberra":
-                similarities = {key: measures.canberraDistance(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
-                                                                np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
+            elif similarity_measure == "bhattacharyya":
+                similarities = {key: measures.bhattacharyyaDistance(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
+                                                                     np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
                                 for key, value in histograms.items()}
                 reverse = False
+            elif similarity_measure == "Chisqr":
+                similarities = {key: measures.histogramChisqr(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
+                                                                     np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
+                                for key, value in histograms.items()}
+                reverse = False
+
+            elif similarity_measure == "Correl":
+                similarities = {key: measures.histogramCorrel(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
+                                                                np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
+                                for key, value in histograms.items()}
+                reverse = True
 
             top_k = [k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=reverse)][:K]
             top_k_numbers = [int(filename[5:-4]) for filename in top_k]
@@ -155,7 +168,7 @@ def process_similarity_measures(histograms, descriptor, labels, dimension, struc
         pickle.dump(top_K, f)
 
     print(f"Results saved to {pkl_output_path}")
-    
+     
 def compute_confusion_matrix(ground_truth, predicted):
     # Ensure ground_truth and predicted are NumPy arrays of the same shape
     ground_truth = np.asarray(ground_truth)
@@ -258,8 +271,8 @@ def background_images(qsd_folder):
         if f1s:
             print(f"Mean F1 Score: {np.mean(f1s)}")
 
+
 if __name__ == '__main__':
-    # Create results folder if it doesn't exist
     if not os.path.exists(RESULTS_FOLDER):
         os.makedirs(RESULTS_FOLDER)
         
