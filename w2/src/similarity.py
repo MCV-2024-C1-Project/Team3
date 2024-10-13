@@ -33,8 +33,10 @@ class ComputeSimilarity:
 
         return h1_concat, h2_concat
     
-    # Histogram Intersection implementation (1D)
-    def histogramIntersectionGrayScale(self,h1, h2):
+    def histogramIntersectionGrayScale(self, h1, h2):
+        if h1.shape != h2.shape:
+            raise ValueError(f"Histogram shapes do not match: {h1.shape} vs {h2.shape}")
+        
         return cv2.compareHist(h1, h2, cv2.HISTCMP_INTERSECT)
     
     # Histogram Intersection implementation (3D)

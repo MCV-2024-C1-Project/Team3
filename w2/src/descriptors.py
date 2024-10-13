@@ -31,7 +31,7 @@ class ImageDescriptor:
         subimgs = [img for row in divide2 for img in row]
         return subimgs
 
-    def describe(self, image, dimension, structure):
+    def describe(self, image, dimension, structure, mask=None):
         if self.color_space == 'HLS':
             image = cv2.cvtColor(image, cv2.COLOR_BGR2HLS_FULL)
         elif self.color_space == 'HSV':
@@ -60,17 +60,17 @@ class ImageDescriptor:
                     hist = []
                     if b == 0:
                         if dimension == '3D':
-                            h1 = cv2.calcHist([image1], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
-                            h2 = cv2.calcHist([image2], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
-                            h3 = cv2.calcHist([image3], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                            h1 = cv2.calcHist([image1], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                            h2 = cv2.calcHist([image2], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                            h3 = cv2.calcHist([image3], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
                             hist.append(h1.flatten())
                             hist.append(h2.flatten())
                             hist.append(h3.flatten())
                         elif dimension == '2D':
                             for i in range(3):
-                                h1 = cv2.calcHist([image1], [i], None, [self.histogram_bins[i]], ranges[i])
-                                h2 = cv2.calcHist([image2], [i], None, [self.histogram_bins[i]], ranges[i])
-                                h3 = cv2.calcHist([image3], [i], None, [self.histogram_bins[i]], ranges[i])
+                                h1 = cv2.calcHist([image1], [i], mask, [self.histogram_bins[i]], ranges[i])
+                                h2 = cv2.calcHist([image2], [i], mask, [self.histogram_bins[i]], ranges[i])
+                                h3 = cv2.calcHist([image3], [i], mask, [self.histogram_bins[i]], ranges[i])
                                 hist.append(h1.flatten())
                                 hist.append(h2.flatten())
                                 hist.append(h3.flatten())
@@ -78,33 +78,33 @@ class ImageDescriptor:
                         subimgs = self.block(image1, 2**b)
                         for img in subimgs:
                             if dimension == '3D':
-                                h1 = cv2.calcHist([img], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                                h1 = cv2.calcHist([img], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
                                 hist.append(h1.flatten())
                             elif dimension == '2D':
                                 for i in range(3):
-                                    h1 = cv2.calcHist([img], [i], None, [self.histogram_bins[i]], ranges[i])
+                                    h1 = cv2.calcHist([img], [i], mask, [self.histogram_bins[i]], ranges[i])
                                     hist.append(h1.flatten())
 
                         subimgs = self.block(image2, 2**b)
                         for img in subimgs:
                             if dimension == '3D':
-                                h2 = cv2.calcHist([img], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                                h2 = cv2.calcHist([img], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
                                 hist.append(h2.flatten())
 
                             elif dimension == '2D':
                                 for i in range(3):
-                                    h2  = cv2.calcHist([img], [i], None, [self.histogram_bins[i]], ranges[i])
+                                    h2  = cv2.calcHist([img], [i], mask, [self.histogram_bins[i]], ranges[i])
                                     hist.append(h2.flatten())
 
                         subimgs = self.block(image3, 2**b)
                         for img in subimgs:
                             if dimension == '3D':
-                                h3 = cv2.calcHist([img], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                                h3 = cv2.calcHist([img], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
                                 hist.append(h3.flatten())    
 
                             elif dimension == '2D':
                                 for i in range(3):
-                                    h3 = cv2.calcHist([img], [i], None, [self.histogram_bins[i]], ranges[i])
+                                    h3 = cv2.calcHist([img], [i], mask, [self.histogram_bins[i]], ranges[i])
                                     hist.append(h3.flatten())
                     histograms[b] = {'histogram': np.concatenate(hist).flatten()}
                 return histograms
@@ -114,17 +114,17 @@ class ImageDescriptor:
                 for b in range(3):
                     if b == 0:
                         if dimension == '3D':
-                            h1 = cv2.calcHist([image1], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
-                            h2 = cv2.calcHist([image2], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
-                            h3 = cv2.calcHist([image3], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                            h1 = cv2.calcHist([image1], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                            h2 = cv2.calcHist([image2], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                            h3 = cv2.calcHist([image3], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
                             hist.append(h1.flatten())
                             hist.append(h2.flatten())
                             hist.append(h3.flatten())
                         elif dimension == '2D':
                             for i in range(3):
-                                h1 = cv2.calcHist([image1], [i], None, [self.histogram_bins[i]], ranges[i])
-                                h2 = cv2.calcHist([image2], [i], None, [self.histogram_bins[i]], ranges[i])
-                                h3 = cv2.calcHist([image3], [i], None, [self.histogram_bins[i]], ranges[i])
+                                h1 = cv2.calcHist([image1], [i], mask, [self.histogram_bins[i]], ranges[i])
+                                h2 = cv2.calcHist([image2], [i], mask, [self.histogram_bins[i]], ranges[i])
+                                h3 = cv2.calcHist([image3], [i], mask, [self.histogram_bins[i]], ranges[i])
                                 hist.append(h1.flatten())
                                 hist.append(h2.flatten())
                                 hist.append(h3.flatten())
@@ -132,33 +132,33 @@ class ImageDescriptor:
                         subimgs = self.block(image1, 2**b)
                         for img in subimgs:
                             if dimension == '3D':
-                                h1 = cv2.calcHist([img], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                                h1 = cv2.calcHist([img], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
                                 hist.append(h1.flatten())
                             elif dimension == '2D':
                                 for i in range(3):
-                                    h1 = cv2.calcHist([img], [i], None, [self.histogram_bins[i]], ranges[i])
+                                    h1 = cv2.calcHist([img], [i], mask, [self.histogram_bins[i]], ranges[i])
                                     hist.append(h1.flatten())
 
                         subimgs = self.block(image2, 2**b)
                         for img in subimgs:
                             if dimension == '3D':
-                                h2 = cv2.calcHist([img], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                                h2 = cv2.calcHist([img], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
                                 hist.append(h2.flatten())
 
                             elif dimension == '2D':
                                 for i in range(3):
-                                    h2  = cv2.calcHist([img], [i], None, [self.histogram_bins[i]], ranges[i])
+                                    h2  = cv2.calcHist([img], [i], mask, [self.histogram_bins[i]], ranges[i])
                                     hist.append(h2.flatten())
 
                         subimgs = self.block(image3, 2**b)
                         for img in subimgs:
                             if dimension == '3D':
-                                h3 = cv2.calcHist([img], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                                h3 = cv2.calcHist([img], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
                                 hist.append(h3.flatten())    
 
                             elif dimension == '2D':
                                 for i in range(3):
-                                    h3 = cv2.calcHist([img], [i], None, [self.histogram_bins[i]], ranges[i])
+                                    h3 = cv2.calcHist([img], [i], mask, [self.histogram_bins[i]], ranges[i])
                                     hist.append(h3.flatten())
                     histograms[b] = {'histogram': np.concatenate(hist).flatten()}
                 return histograms
@@ -166,11 +166,11 @@ class ImageDescriptor:
             if structure == 'simple':
                 histograms = []
                 if dimension == '3D':
-                    hist = cv2.calcHist([image], [0, 1, 2], None, [128, 128, 128], [0, 256, 0, 256, 0, 256])
+                    hist = cv2.calcHist([image], [0, 1, 2], mask, [128, 128, 128], [0, 256, 0, 256, 0, 256])
                     histograms.append(hist.flatten())
                 elif dimension == '2D':
                     for i in range(3):
-                        hist = cv2.calcHist([image], [i], None, [self.histogram_bins[i]], ranges[i])
+                        hist = cv2.calcHist([image], [i], mask, [self.histogram_bins[i]], ranges[i])
                         histograms.append(hist.flatten())
                 return np.concatenate(histograms).flatten()
 
@@ -180,21 +180,21 @@ class ImageDescriptor:
                     hist = []
                     if b == 0:
                         if dimension == '3D':
-                            h = cv2.calcHist([image], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                            h = cv2.calcHist([image], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
                             hist.append(h.flatten())
                         elif dimension == '2D':
                             for i in range(3):
-                                h = cv2.calcHist([image], [i], None, [self.histogram_bins[i]], ranges[i])
+                                h = cv2.calcHist([image], [i], mask, [self.histogram_bins[i]], ranges[i])
                                 hist.append(h.flatten())
                     else:
                         subimgs = self.block(image, 2**b)
                         for img in subimgs:
                             if dimension == '3D':
-                                h = cv2.calcHist([img], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                                h = cv2.calcHist([img], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
                                 hist.append(h.flatten())
                             elif dimension == '2D':
                                 for i in range(3):
-                                    h = cv2.calcHist([img], [i], None, [self.histogram_bins[i]], ranges[i])
+                                    h = cv2.calcHist([img], [i], mask, [self.histogram_bins[i]], ranges[i])
                                     hist.append(h.flatten())
                     histograms[b] = {'histogram': np.concatenate(hist).flatten()}
                 return histograms
@@ -205,21 +205,21 @@ class ImageDescriptor:
                 for b in range(3):
                     if b == 0:
                         if dimension == '3D':
-                            h = cv2.calcHist([image], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                            h = cv2.calcHist([image], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
                             hist.append(h.flatten())
                         elif dimension == '2D':
                             for i in range(3):
-                                h = cv2.calcHist([image], [i], None, [self.histogram_bins[i]], ranges[i])
+                                h = cv2.calcHist([image], [i], mask, [self.histogram_bins[i]], ranges[i])
                                 hist.append(h.flatten())
                     else:
                         subimgs = self.block(image, 2**b)
                         for img in subimgs:
                             if dimension == '3D':
-                                h = cv2.calcHist([img], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                                h = cv2.calcHist([img], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
                                 hist.append(h.flatten())
                             elif dimension == '2D':
                                 for i in range(3):
-                                    h = cv2.calcHist([img], [i], None, [self.histogram_bins[i]], ranges[i])
+                                    h = cv2.calcHist([img], [i], mask, [self.histogram_bins[i]], ranges[i])
                                     hist.append(h.flatten())
                     histograms[b] = {'histogram': np.concatenate(hist).flatten()}
                 return histograms
