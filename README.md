@@ -144,8 +144,14 @@ This will run the image retrieval system, generate the descriptors, compute the 
 To execute Week2 project, run this command
 
 ```bash
-python w2/src/main.py <query_images_folder_path>
+python w2/src/main.py <query_images_folder_path> <dimension> <colorspace> <structure> <measure>
 ```
+Where:
+- `<query_images_folder_path>` is the path to the query images folder.
+- `<dimension>` : 3D | 2D
+- `<colorspace>` : HLS | HSV
+- `<structure>` : block | heriarchical | simple
+- `<measure>` : intersection | canberra 
 
 This will run the image retrieval system, generate the descriptors, remove the background if neccesary, compute the similarities, and output the results.
 

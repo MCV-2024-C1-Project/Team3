@@ -12,13 +12,22 @@ class ComputeSimilarity:
     
     # Function to concatenate histograms for multi-dimensional histograms (3D)
     def concatenateHistograms(self, h1, h2):
-        # Normalize histograms
-        h1_normalized = [normalizeHistogram(c) for c in h1]
-        h2_normalized = [normalizeHistogram(c) for c in h2]
+        if h1 is None or h2 is None:
+            raise ValueError("One of the histograms is None")
+        if not isinstance(h1, np.ndarray) or not isinstance(h2, np.ndarray):
+            raise ValueError("Both histograms must be numpy arrays")
+        if h1.size == 0 or h2.size == 0:
+            raise ValueError("One of the histograms is empty")
 
-        # Concatenate histograms for each channel into a single 1D array
-        h1_concat = np.concatenate(h1_normalized).ravel()
-        h2_concat = np.concatenate(h2_normalized).ravel()
+        h1_normalized = h1 / (np.sum(h1) + 1e-7)  # Normalizing the histograms
+        h2_normalized = h2 / (np.sum(h2) + 1e-7)
+
+        # Check for valid dimensions and non-empty arrays before concatenating
+        if h1_normalized.size == 0 or h2_normalized.size == 0:
+            raise ValueError("One of the histograms is empty after normalization")
+
+        h1_concat = np.concatenate([h1_normalized]).ravel()
+        h2_concat = np.concatenate([h2_normalized]).ravel()
 
         return h1_concat, h2_concat
     

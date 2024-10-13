@@ -11,6 +11,9 @@ env/
 */data/*
 data/*
 
+*/ev/*
+ev/*
+
 # Mask files
 */masks/
 masks/*

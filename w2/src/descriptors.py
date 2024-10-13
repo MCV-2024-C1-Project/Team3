@@ -4,44 +4,71 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 class ImageDescriptor:
-    # Define the ranges for each color space
     COLOR_RANGES = {
         'HLS': [[0, 256], [0, 256], [0, 256]],
         'HSV': [[0, 256], [0, 256], [0, 256]]
     }
 
-    # Define the names for each channel
     CHANNEL_NAMES = {
         'HLS': ['H', 'L', 'S'],
         'HSV': ['H', 'S', 'V']
     }
 
-    def __init__(self, color_space, histogram_bins=[256, 256, 256]):  # default value for histogram_bins [R, G, B]
+    def __init__(self, color_space, histogram_bins=[256, 256, 256]):
         self.color_space = color_space
         self.histogram_bins = histogram_bins
         if color_space not in self.COLOR_RANGES:
             raise ValueError(f"Unsupported color space: {color_space}")
 
+    def block(self, image, nblocks):
+        divide1 = np.array_split(image, nblocks, axis=0)
+        divide2 = [np.array_split(subimg, nblocks, axis=1) for subimg in divide1]
+        subimgs = [img for row in divide2 for img in row]
+        return subimgs
 
-    def describe(self, image):
-        # Select color space
+    def describe(self, image, dimension, structure):
         if self.color_space == 'HLS':
             image = cv2.cvtColor(image, cv2.COLOR_BGR2HLS_FULL)
         elif self.color_space == 'HSV':
             image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV_FULL)
 
-        # Define the ranges for each channel
         ranges = self.COLOR_RANGES[self.color_space]
 
-        histograms = []
+        if structure == 'simple':
+            histograms = []
+            if dimension == '3D':
+                hist = cv2.calcHist([image], [0, 1, 2], None, [128, 128, 128], [0, 256, 0, 256, 0, 256])
+                histograms.append(hist.flatten())
+            elif dimension == '2D':
+                for i in range(3):
+                    hist = cv2.calcHist([image], [i], None, [self.histogram_bins[i]], ranges[i])
+                    histograms.append(hist.flatten())
+            return np.concatenate(histograms).flatten()
 
-        # Calculate histogram for each channel
-        for i in range(3):
-            hist = cv2.calcHist([image], [i], None, [self.histogram_bins[i]], ranges[i])
-            histograms.append(hist.squeeze())
-
-        return histograms
-    
+        elif structure == 'block' or structure == 'heriarchical':
+            histograms = {}
+            for b in range(3):
+                hist = []
+                if b == 0:
+                    if dimension == '3D':
+                        h = cv2.calcHist([image], [0, 1, 2], None, [32, 32, 32], [0, 256, 0, 256, 0, 256])
+                        hist.append(h.flatten())
+                    elif dimension == '2D':
+                        for i in range(3):
+                            h = cv2.calcHist([image], [i], None, [self.histogram_bins[i]], ranges[i])
+                            hist.append(h.flatten())
+                else:
+                    subimgs = self.block(image, 2**b)
+                    for img in subimgs:
+                        if dimension == '3D':
+                            h = cv2.calcHist([img], [0, 1, 2], None, [32, 32, 32], [0, 256, 0, 256, 0, 256])
+                            hist.append(h.flatten())
+                        elif dimension == '2D':
+                            for i in range(3):
+                                h = cv2.calcHist([img], [i], None, [self.histogram_bins[i]], ranges[i])
+                                hist.append(h.flatten())
+                histograms[b] = {'histogram': np.concatenate(hist).flatten()}
+            return histograms
 
     def save_histogram(self, hist, output_path):
         #Create figure with 3 subplots
@@ -61,5 +88,3 @@ class ImageDescriptor:
 
         # fig.savefig(output_path,bbox_inches='tight') #store image
         plt.close()  # Close the figure to free up memory
-
-        
