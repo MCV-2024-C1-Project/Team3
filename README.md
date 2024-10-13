@@ -13,7 +13,6 @@ This project implements a **Content Based Image Retrieval** system that searches
 3. [Weekly development](#weekly-development)
     - [Week 1: Image Retrieval Based on Color Histograms](#week-1-image-retrieval-based-on-color-histograms)
     - [Week 2: Background Removal and Advanced Descriptors](#week-2-background-removal-and-advanced-descriptors)
-4. [Deactivating the Virtual Environment](#deactivating-the-virtual-environment)
 
 ---
 
@@ -132,16 +131,3 @@ Where:
 - `<measure>`: intersection, canberra, etc.
 
 This will run the Week 2 retrieval system with the specified configurations.
-
----
-
-## Deactivating the Virtual Environment
-After completing your work, deactivate the virtual environment:
-
-```bash
-deactivate
-```
-
----
-
-This structure should provide clear guidance on how to set up and run the project for both weeks, with organized tasks and descriptions for each week’s assignments.
