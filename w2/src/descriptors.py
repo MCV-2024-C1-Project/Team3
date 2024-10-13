@@ -162,93 +162,67 @@ class ImageDescriptor:
                                     hist.append(h3.flatten())
                     histograms[b] = {'histogram': np.concatenate(hist).flatten()}
                 return histograms
-
-        if structure == 'simple':
-            histograms = []
-            if dimension == '3D':
-                hist = cv2.calcHist([image], [0, 1, 2], None, [128, 128, 128], [0, 256, 0, 256, 0, 256])
-                histograms.append(hist.flatten())
-            elif dimension == '2D':
-                for i in range(3):
-                    hist = cv2.calcHist([image], [i], None, [self.histogram_bins[i]], ranges[i])
+        else: 
+            if structure == 'simple':
+                histograms = []
+                if dimension == '3D':
+                    hist = cv2.calcHist([image], [0, 1, 2], None, [128, 128, 128], [0, 256, 0, 256, 0, 256])
                     histograms.append(hist.flatten())
-            return np.concatenate(histograms).flatten()
+                elif dimension == '2D':
+                    for i in range(3):
+                        hist = cv2.calcHist([image], [i], None, [self.histogram_bins[i]], ranges[i])
+                        histograms.append(hist.flatten())
+                return np.concatenate(histograms).flatten()
 
-        elif structure == 'block' :
-            histograms = {}
-            for b in range(3):
-                hist = []
-                if b == 0:
-                    if dimension == '3D':
-                        h = cv2.calcHist([image], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
-                        hist.append(h.flatten())
-                    elif dimension == '2D':
-                        for i in range(3):
-                            h = cv2.calcHist([image], [i], None, [self.histogram_bins[i]], ranges[i])
-                            hist.append(h.flatten())
-                else:
-                    subimgs = self.block(image, 2**b)
-                    for img in subimgs:
+            elif structure == 'block' :
+                histograms = {}
+                for b in range(3):
+                    hist = []
+                    if b == 0:
                         if dimension == '3D':
-                            h = cv2.calcHist([img], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
-                            hist.append(h.flatten())
-                        elif dimension == '2D':
-                            for i in range(3):
-                                h = cv2.calcHist([img], [i], None, [self.histogram_bins[i]], ranges[i])
-                                hist.append(h.flatten())
-                histograms[b] = {'histogram': np.concatenate(hist).flatten()}
-            return histograms
-        elif structure == 'heriarchical':
-            histograms = {}
-            hist = []
-            for b in range(3):
-                if b == 0:
-                    if dimension == '3D':
-                        h = cv2.calcHist([image], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
-                        hist.append(h.flatten())
-                    elif dimension == '2D':
-                        for i in range(3):
-                            h = cv2.calcHist([image], [i], None, [self.histogram_bins[i]], ranges[i])
-                            hist.append(h.flatten())
-                else:
-                    subimgs = self.block(image, 2**b)
-                    for img in subimgs:
-                        if dimension == '3D':
-                            h = cv2.calcHist([img], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                            h = cv2.calcHist([image], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
                             hist.append(h.flatten())
                         elif dimension == '2D':
                             for i in range(3):
                                 h = cv2.calcHist([image], [i], None, [self.histogram_bins[i]], ranges[i])
-                                hist.append(h.squeeze())
-
-                        else:
-                            raise ValueError(f"Unsupported dimension: {dimension}")
-                        
+                                hist.append(h.flatten())
                     else:
-
-                        subimgs=self.block(image,2**b)
-
+                        subimgs = self.block(image, 2**b)
                         for img in subimgs:
-
-                            if dimension=='3D':
-                                h = cv2.calcHist([img.astype(np.float32)], [0,1,2], None, [16,16,16],  [0, 256, 0, 256, 0, 256])
-                                hist.append(h)
-
-                            elif dimension=='2D':
+                            if dimension == '3D':
+                                h = cv2.calcHist([img], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                                hist.append(h.flatten())
+                            elif dimension == '2D':
                                 for i in range(3):
-                                    h = cv2.calcHist([image], [i], None, [self.histogram_bins[i]], ranges[i])
-                                    hist.append(h.squeeze())
-        
-                            else:
-                                raise ValueError(f"Unsupported dimension: {dimension}")
-                    
-                
-                    histograms[b] = {
-                        'level': b,
-                        'histogram': np.array(hist).flatten()
-                    }
-
-            return histograms
+                                    h = cv2.calcHist([img], [i], None, [self.histogram_bins[i]], ranges[i])
+                                    hist.append(h.flatten())
+                    histograms[b] = {'histogram': np.concatenate(hist).flatten()}
+                return histograms
+            
+            elif structure == 'heriarchical':
+                histograms = {}
+                hist = []
+                for b in range(3):
+                    if b == 0:
+                        if dimension == '3D':
+                            h = cv2.calcHist([image], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                            hist.append(h.flatten())
+                        elif dimension == '2D':
+                            for i in range(3):
+                                h = cv2.calcHist([image], [i], None, [self.histogram_bins[i]], ranges[i])
+                                hist.append(h.flatten())
+                    else:
+                        subimgs = self.block(image, 2**b)
+                        for img in subimgs:
+                            if dimension == '3D':
+                                h = cv2.calcHist([img], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+                                hist.append(h.flatten())
+                            elif dimension == '2D':
+                                for i in range(3):
+                                    h = cv2.calcHist([img], [i], None, [self.histogram_bins[i]], ranges[i])
+                                    hist.append(h.flatten())
+                    histograms[b] = {'histogram': np.concatenate(hist).flatten()}
+                return histograms
 
     def save_histogram(self, hist, output_path):
         #Create figure with 3 subplots

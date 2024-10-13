@@ -158,7 +158,7 @@ if __name__ == '__main__':
     # Load histograms for all combinations of dimension, structure and color space
     #Best combination 2D LAB block level 2 with intersection measure
     for dimension in ['3D','2D']:
-        for colorspace in ['RGB','HSV','LAB','XYZ','YCrCb','HLS']:
+        for colorspace in ['LAB']: #'RGB','HSV','LAB','XYZ','YCrCb','HLS'
             for structure in ['block', 'heriarchical']:
                 histograms = load_histograms(dimension, structure, ImageDescriptor(colorspace), BBDD_FOLDER)
                 process_similarity_measures(histograms, ImageDescriptor(colorspace), labels, dimension, structure, k_val=1, method_folder=METHOD1_FOLDER)
