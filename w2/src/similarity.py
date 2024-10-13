@@ -33,6 +33,51 @@ class ComputeSimilarity:
 
         return tot_similarity
     
+
+    # Histogram chisqr implementation (1D)
+    def histogramChisqrGrayScale(self,h1, h2):
+        return cv2.compareHist(h1, h2, cv2.HISTCMP_CHISQR)
+    
+    # Histogram chisqr implementation (3D)
+    # First normalize the histograms, and then compute the similarity for each dimension of histogram
+    # Then, the average of each value is done.
+    def histogramChisqr(self,h1, h2):
+        if np.array(h1).ndim==3:
+            similarity_values = [
+                self.histogramChisqrGrayScale(
+                    normalizeHistogram(c1), 
+                    normalizeHistogram(c2)) for c1, c2 in zip(h1, h2)]
+        else:
+            similarity_values = [
+            self.histogramChisqrGrayScale(
+                normalizeHistogram(h1), 
+                normalizeHistogram(h2))]
+        tot_similarity = sum(similarity_values) / len(similarity_values)
+
+        return tot_similarity
+    
+        # Histogram Correl implementation (1D)
+    def histogramCorrelGrayScale(self,h1, h2):
+        return cv2.compareHist(h1, h2, cv2.HISTCMP_CORREL)
+    
+    # Histogram chisqr implementation (3D)
+    # First normalize the histograms, and then compute the similarity for each dimension of histogram
+    # Then, the average of each value is done.
+    def histogramCorrel(self,h1, h2):
+        if np.array(h1).ndim==3:
+            similarity_values = [
+                self.histogramCorrelGrayScale(
+                    normalizeHistogram(c1), 
+                    normalizeHistogram(c2)) for c1, c2 in zip(h1, h2)]
+        else:
+            similarity_values = [
+            self.histogramCorrelGrayScale(
+                normalizeHistogram(h1), 
+                normalizeHistogram(h2))]
+        tot_similarity = sum(similarity_values) / len(similarity_values)
+
+        return tot_similarity
+    
     # Bhattacharyya distance implementation (1D)
     def bhattacharyyaDistanceGrayScale(self,h1, h2):
 
@@ -42,11 +87,17 @@ class ComputeSimilarity:
     # First normalize the histograms, and then compute the similarity for each dimension of histogram
     # Then, the average of each value is done.
     def bhattacharyyaDistance(self,h1, h2):
-
-        similarity_values = [
-            self.bhattacharyyaDistanceGrayScale(
-                normalizeHistogram(c1), 
-                normalizeHistogram(c2)) for c1, c2 in zip(h1, h2)]
+        if np.array(h1).ndim==3:
+            similarity_values = [
+                self.bhattacharyyaDistanceGrayScale(
+                    normalizeHistogram(c1), 
+                    normalizeHistogram(c2)) for c1, c2 in zip(h1, h2)]
+            
+        else:
+            similarity_values = [
+                self.bhattacharyyaDistanceGrayScale(
+                    normalizeHistogram(h1), 
+                    normalizeHistogram(h2))]
         tot_similarity = sum(similarity_values) / len(similarity_values)
 
         return tot_similarity

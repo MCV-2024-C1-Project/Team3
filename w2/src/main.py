@@ -77,8 +77,14 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
             if similarity_measure == "intersection":
                 similarities = {key: measures.histogramIntersection(histogram, value['histograms']) for key, value in histograms.items()}
                 reverse = True
-            elif similarity_measure == "canberra":
-                similarities = {key: measures.canberraDistance(histogram, value['histograms']) for key, value in histograms.items()}
+            elif similarity_measure == "bhattacharyya":
+                similarities = {key: measures.bhattacharyyaDistance(histogram, value['histograms']) for key, value in histograms.items()}
+                reverse = True
+            elif similarity_measure == "Chisqr":
+                similarities = {key: measures.histogramChisqr(histogram, value['histograms']) for key, value in histograms.items()}
+                reverse = True
+            elif similarity_measure == "Correl":
+                similarities = {key: measures.histogramCorrel(histogram, value['histograms']) for key, value in histograms.items()}
                 reverse = False
 
             top_k = [k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=reverse)][:K]
@@ -91,11 +97,22 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
                                                                      np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
                                 for key, value in histograms.items()}
                 reverse = True
-            elif similarity_measure == "canberra":
-                similarities = {key: measures.canberraDistance(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
-                                                                np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
+            elif similarity_measure == "bhattacharyya":
+                similarities = {key: measures.bhattacharyyaDistance(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
+                                                                     np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
                                 for key, value in histograms.items()}
                 reverse = False
+            elif similarity_measure == "Chisqr":
+                similarities = {key: measures.histogramChisqr(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
+                                                                     np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
+                                for key, value in histograms.items()}
+                reverse = False
+
+            elif similarity_measure == "Correl":
+                similarities = {key: measures.histogramCorrel(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
+                                                                np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
+                                for key, value in histograms.items()}
+                reverse = True
 
             top_k = [k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=reverse)][:K]
             top_k_numbers = [int(filename[5:-4]) for filename in top_k]
@@ -106,7 +123,7 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
 
 def process_similarity_measures(histograms, descriptor, labels, dimension, structure, k_val, method_folder, images_folder=QSD1_W1_FOLDER):
     """Process all combinations of similarity measures for a single descriptor."""
-    similarity_measures = ["intersection", "canberra"]
+    similarity_measures = ["intersection", "bhattacharyya"]
 
     for measure in similarity_measures:
         if structure == 'simple':
@@ -139,8 +156,9 @@ if __name__ == '__main__':
         labels = pickle.load(f)
 
     # Load histograms for all combinations of dimension, structure and color space
-    for dimension in ['3D']:
-        for colorspace in ['HSV', 'HLS']:
+    #Best combination 2D LAB block level 2 with intersection measure
+    for dimension in ['3D','2D']:
+        for colorspace in ['RGB','HSV','LAB','XYZ','YCrCb','HLS']:
             for structure in ['block', 'heriarchical']:
                 histograms = load_histograms(dimension, structure, ImageDescriptor(colorspace), BBDD_FOLDER)
                 process_similarity_measures(histograms, ImageDescriptor(colorspace), labels, dimension, structure, k_val=1, method_folder=METHOD1_FOLDER)
