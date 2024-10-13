@@ -112,4 +112,49 @@ class CalculateBackground():
 
         
         return cleaned_mask
+
+if __name__ == "__main__":
+    # Load the image
+    image = cv2.imread('./data/qsd2_w2/00018.jpg')
+
+    background = CalculateBackground(image)
+
+
+    seed_points = [
+        (0, 0),  # Top-left corner
+        (image.shape[1] - 1, 0),  # Top-right corner
+        (0, image.shape[0] - 1),  # Bottom-left corner
+        (image.shape[1] - 1, image.shape[0] - 1),  # Bottom-right corner
+    ]
+
+    edge_map = background.adaptive_thresholding(image)
+
+    # Save edge map
+    cv2.imwrite('./data/qsd2_w2/edge_map.jpg', edge_map)
+
+# Perform region growing for each seed point and stack the masks
+    tot_mask = np.zeros(image.shape[:2], dtype=np.uint8)
+    for seed in seed_points:
+        mask = background.flood_fill_region_with_edges(seed, tolerance=5, edge_map=edge_map)
+        tot_mask = np.maximum(tot_mask, mask)
+
+    # Save total mask
+    cv2.imwrite('./data/qsd2_w2/flood.jpg', cv2.bitwise_not(tot_mask))
+
+    # Apply the mask to get the foreground
+    foreground = background.apply_mask(tot_mask)
+
+    final_mask = background.color_thresholding_simple(0, foreground)
+
     
+
+    tot_mask = tot_mask + final_mask
+
+    # Save color thresholding mask
+    cv2.imwrite('./data/qsd2_w2/color_thresholding.jpg', cv2.bitwise_not(tot_mask))
+
+    final_image = background.morphological_operations_cleanse(tot_mask)
+    final_image = cv2.bitwise_not(final_image)
+
+    # Save final image
+    cv2.imwrite('./data/qsd2_w2/final_image.jpg', final_image)
