@@ -77,7 +77,7 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
         image_path = os.path.join(folder, img)
 
         # Check if the file is an image
-        if not img.endswith(".jpg"):
+        if not img.endswith(".jpg") and not img.endswith(".png"):
             continue
         
         try:
@@ -197,8 +197,7 @@ if __name__ == '__main__':
     #process_similarity_measures(histograms_hsv, ImageDescriptor('HSV'), labels, k_val=10, method_folder=METHOD2_FOLDER, images_folder=QST1_W1_FOLDER)
 
     # Calculate background images
-    if qsd_folder == "./data/qsd2_w2":
-        print("hola")
+    if qsd_folder == "./data/qsd2_w2" or qsd_folder == "./data/qst2_w1" :
         # Create folder for saving images without background
         NO_BG_FOLDER = './data/qsd2_w2_no_bg'
         if not os.path.exists(NO_BG_FOLDER):
@@ -262,12 +261,18 @@ if __name__ == '__main__':
                 f1s.append(f1)
                 iou_scores.append(iou_score)
                 
-                # Apply the mask to the original image to remove the background
-                image_no_bg = cv2.bitwise_and(image, image, mask=final_image)
-                
-                # Save the image without background in the new folder
-                output_path = os.path.join(NO_BG_FOLDER, image_name)
-                cv2.imwrite(output_path, image_no_bg)
+                # Convert the image to BGRA (with alpha channel to handle transparency)
+                image_bgra = cv2.cvtColor(image, cv2.COLOR_BGR2BGRA)
+
+                # Set background pixels (where mask is 0) to transparent (alpha = 0)
+                image_bgra[final_image == 0, 3] = 0  # Make background transparent
+
+                # Set the foreground pixels (where mask is 255) to fully opaque (alpha = 255)
+                image_bgra[final_image != 0, 3] = 255
+
+                # Save the resulting image as a PNG to preserve transparency
+                output_path = os.path.join(NO_BG_FOLDER, image_name.split('.')[0] + ".png")
+                cv2.imwrite(output_path, image_bgra)
                 
         print(f"Mean IoU: {np.mean(iou_scores)}")
         print(f"Mean Precision: {np.mean(precisions)}")
