@@ -38,7 +38,7 @@ RESULTS_FOLDER = './results'
 GT_CORRESPS_FILE = os.path.join(qsd_folder, 'gt_corresps.pkl')
 
 MASK_FOLDER = './masks'
-NO_BG_FOLDER = './data/qsd2_w2_no_bg'
+NO_BG_FOLDER = './data/qsd2_w3_no_bg'
 
 METHOD1_FOLDER = os.path.join(RESULTS_FOLDER, 'method1')  # Output folder for method1
 METHOD2_FOLDER = os.path.join(RESULTS_FOLDER, 'method2')  # Output folder for method2
@@ -206,9 +206,9 @@ def compute_precision_recall_f1(ground_truth, predicted):
 def background_images(qsd_folder):
     # Calculate background images
     final_image=None
-    if qsd_folder == "./data/qsd2_w1" or qsd_folder == "./data\qst2_w1" or qsd_folder == "./data/qst2_w1":
+    if qsd_folder == "./data/qsd2_w3" or qsd_folder == "./data\qst2_w1" or qsd_folder == "./data/qst2_w1":
         print("Removing background")
-        NO_BG_FOLDER = './data/qsd2_w2_no_bg'
+        NO_BG_FOLDER = './data/qsd2_w3_no_bg'
         if not os.path.exists(NO_BG_FOLDER):
             os.makedirs(NO_BG_FOLDER)
         
@@ -243,8 +243,8 @@ def background_images(qsd_folder):
 
                 cv2.imwrite(os.path.join(MASK_FOLDER, image_name.split('.')[0] + ".png"), final_image)
 
-                if qsd_folder == "./data/qsd2_w2/":
-                    gt = cv2.imread(os.path.join("./data/qsd2_w2/", image_name[:-4] + ".png"), cv2.IMREAD_GRAYSCALE)
+                if qsd_folder == "./data/qsd2_w3":
+                    gt = cv2.imread(os.path.join("./data/qsd2_w3/", image_name[:-4] + ".png"), cv2.IMREAD_GRAYSCALE)
                     if gt is not None:
                         intersection = np.logical_and(gt, final_image)
                         union = np.logical_or(gt, final_image)
@@ -309,13 +309,13 @@ if __name__ == '__main__':
                 
 
 
-    print("Processing similarity for test 1 using method:", colorspace, "dimension:", dimension, "structure:", structure)
-    # Process similarity measures using the HLS descriptor and the top-K similarity
-    process_similarity_measures(histograms, ImageDescriptor(colorspace), labels, dimension, structure, k_val=10, mask=None, measure=measure, method_folder=METHOD1_FOLDER, images_folder=QST1_W2_FOLDER)
+    # print("Processing similarity for test 1 using method:", colorspace, "dimension:", dimension, "structure:", structure)
+    # # Process similarity measures using the HLS descriptor and the top-K similarity
+    # process_similarity_measures(histograms, ImageDescriptor(colorspace), labels, dimension, structure, k_val=10, mask=None, measure=measure, method_folder=METHOD1_FOLDER, images_folder=QST1_W2_FOLDER)
     
-    qsd_folder = QST2_W2_FOLDER
-    print(qsd_folder)
-    qsd_folder, mask = background_images(qsd_folder)
-    print("Processing similarity for test 2 using method:", colorspace, "dimension:", dimension, "structure:", structure)
-    # Process similarity measures using the HLS descriptor and the top-K similarity
-    process_similarity_measures(histograms, ImageDescriptor(colorspace), labels, dimension, structure, k_val=10, mask=cv2.bitwise_not(mask), measure=measure, method_folder=METHOD2_FOLDER, images_folder=NO_BG_FOLDER)
+    # qsd_folder = QST2_W2_FOLDER
+    # print(qsd_folder)
+    # qsd_folder, mask = background_images(qsd_folder)
+    # print("Processing similarity for test 2 using method:", colorspace, "dimension:", dimension, "structure:", structure)
+    # # Process similarity measures using the HLS descriptor and the top-K similarity
+    # process_similarity_measures(histograms, ImageDescriptor(colorspace), labels, dimension, structure, k_val=10, mask=cv2.bitwise_not(mask), measure=measure, method_folder=METHOD2_FOLDER, images_folder=NO_BG_FOLDER)

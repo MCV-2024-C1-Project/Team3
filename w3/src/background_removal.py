@@ -1,8 +1,6 @@
+import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-import numpy as np
-from collections import deque
-import os
 
 class CalculateBackground():
     def __init__(self, image):
@@ -14,147 +12,146 @@ class CalculateBackground():
         plt.title(title)
         plt.axis('off')
         plt.show()
-    
-    def color_thresholding_simple(self, threshold, image = [], mask_des = []):
 
-        if len(image) == 0:
-            image = self.image
+    def grayscale_conversion(self, image):
+        """Convert an image to grayscale manually."""
+        return np.dot(image[..., :3], [0.299, 0.587, 0.114]).astype(np.uint8)
 
-        lab_image = cv2.cvtColor(image, cv2.COLOR_BGR2Lab)
-        l_channel = lab_image[:, :, 0]
-        a_channel = lab_image[:, :, 1]
-        b_channel = lab_image[:, :, 2]
+    def apply_kernel(self, image, kernel):
+        """Apply a 3x3 kernel to the image manually using convolution."""
+        # Image dimensions
+        h, w = image.shape
+        # Kernel size
+        k_size = kernel.shape[0]
 
-        lower_bound = np.array([0, -15, -15])  # Valor L muy bajo para incluir sombras muy oscuras
-        upper_bound = np.array([60, 15, 15])    # Valor L un poco más alto para grises oscuros
+        # Pad the image to handle borders
+        pad = k_size // 2
+        padded_image = np.pad(image, pad, mode='constant', constant_values=0)
 
-        mask = cv2.inRange(lab_image, lower_bound, upper_bound)
+        # Output image
+        output = np.zeros((h, w), dtype=np.float32)
 
-        if len(mask_des) > 0:
-            mask = mask + mask_des
+        # Convolve kernel over the image
+        for i in range(h):
+            for j in range(w):
+                # Extract the region of interest (ROI)
+                region = padded_image[i:i + k_size, j:j + k_size]
+                # Perform element-wise multiplication and sum
+                output[i, j] = np.sum(region * kernel)
+        
+        return output
 
-        return mask
+    def compute_gradients_manual(self, image):
+        """Compute Sobel gradients manually using convolution."""
+        # Convert the image to grayscale
+        gray_image = self.grayscale_conversion(image)
 
-    def convert_to_lab(self, image):
-        """Convert the image to CIELAB color space."""
-        return cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-    
-    def create_mask(self, shape):
-        """Create an empty mask for the region."""
-        return np.zeros(shape[:2], dtype=np.uint8)
-    
-    def get_seed_color(self, lab_image, seed_point):
-        """Get the color of the seed point."""
-        return lab_image[seed_point[1], seed_point[0]]  # (x, y)
+        # Define Sobel kernels for x and y gradients
+        sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=np.float32)
+        sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=np.float32)
 
-    def adaptive_thresholding(self,image):
-        """Apply adaptive thresholding to the image."""
-        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
-        return cv2.adaptiveThreshold(blurred_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+        # Apply kernels to the image using manual convolution
+        gradient_x = self.apply_kernel(gray_image, sobel_x)
+        gradient_y = self.apply_kernel(gray_image, sobel_y)
 
-    def flood_fill_region_with_edges(self, seed_point, tolerance=20, edge_map=None):
-        """Perform region growing using OpenCV's floodFill and stop at edges."""
-        lab_image = self.convert_to_lab(self.image)
-        height, width = lab_image.shape[:2]
+        # Compute gradient magnitude
+        gradient_magnitude = np.sqrt(gradient_x ** 2 + gradient_y ** 2)
 
-        # Expand mask size to include a 1-pixel border
-        mask = self.create_mask((height + 2, width + 2))
+        # Normalize the gradient magnitude to range [0, 255]
+        gradient_magnitude = np.uint8(255 * gradient_magnitude / np.max(gradient_magnitude))
 
-        # Incorporar edge_map en la máscara
-        if edge_map is not None:
-            mask[1:height+1, 1:width+1] = np.where(edge_map == 0, 1, 0)
+        return gradient_magnitude
 
-        seed_color = self.get_seed_color(lab_image, seed_point)
-        lower_bound = (tolerance, tolerance, tolerance)
-        upper_bound = (tolerance, tolerance, tolerance)
+    def detect_contours_from_gradients(self, gradient_magnitude, threshold=80):
+        """Detect contours based on gradient magnitude."""
+        # Threshold the gradient magnitude to get edges
+        edges = np.where(gradient_magnitude > threshold, 255, 0).astype(np.uint8)
 
-        # Flood fill parameters
-        flags = 4 | (255 << 8)  # 4-connectivity and a fixed value of 255
+        # Find contours using edges
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        # Apply flood fill
-        cv2.floodFill(lab_image, mask, seed_point, 255, lower_bound, upper_bound, flags)
+        # Filter contours by size (e.g., areas that are too small)
+        min_area = 5000  # Adjust this threshold as needed to filter out smaller regions
+        large_contours = [c for c in contours if cv2.contourArea(c) > min_area]
 
-        # Remove the border added earlier
-        final_mask = mask[1:-1, 1:-1]
+        return large_contours, edges
 
+    def filter_frame_contours(self, contours, aspect_ratio_range=(0.8, 1.5)):
+        """Filter contours that are likely to be picture frames based on area and aspect ratio."""
+        filtered_contours = []
+        for contour in contours:
+            # Get bounding rectangle for each contour
+            x, y, w, h = cv2.boundingRect(contour)
+            aspect_ratio = float(w) / h
+            if aspect_ratio_range[0] <= aspect_ratio <= aspect_ratio_range[1]:
+                filtered_contours.append(contour)
+        return filtered_contours
 
+    def draw_contours(self, contours):
+        """Draw contours on the image for visualization."""
+        img_copy = self.image.copy()
+        cv2.drawContours(img_copy, contours, -1, (0, 255, 0), 3)  # Green for contours
+        self.display_image(img_copy, "Contours Detected")
 
-        return final_mask
-
-
-
+    def flood_fill_from_contours(self, contours):
+        """Flood fill the areas inside the contours."""
+        height, width = self.image.shape[:2]
+        
+        # Create a mask that is 2 pixels larger in both dimensions
+        mask = np.zeros((height + 2, width + 2), dtype=np.uint8)
+        
+        for contour in contours:
+            # Get bounding rectangle for the contour
+            x, y, w, h = cv2.boundingRect(contour)
+            seed_point = (x + w // 2, y + h // 2)  # Seed point in the center of the bounding box
+            
+            # Use flood fill to fill the area inside the contour
+            mask_temp = np.zeros((height + 2, width + 2), dtype=np.uint8)
+            cv2.floodFill(self.image, mask_temp, seed_point, 255)
+            
+            # Combine mask with the current mask
+            mask = np.maximum(mask, mask_temp)
+        
+        # Return the mask, excluding the extra border pixels
+        return mask[1:-1, 1:-1]
 
     def apply_mask(self, mask):
-        """Apply the mask to the original image to extract the foreground."""
-        # Invert the mask to consider everything outside the region
-        #inverted_mask = cv2.bitwise_not(mask)
-        
-        # Apply the inverted mask to get the background
+        """Apply the mask to the original image."""
         background_removed = cv2.bitwise_and(self.image, self.image, mask=mask)
-        
         return background_removed
-    
 
-    
     def morphological_operations_cleanse(self, final_mask):
-
-        # Morphological operations to eliminate noise
+        """Clean the mask using morphological operations."""
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (100, 1))
-
-        # Apply opening to remove small noise (erosion followed by dilation)
-        #cleaned_mask = cv2.morphologyEx(final_mask, cv2.MORPH_OPEN, kernel)
-        # Optionally, apply closing to fill small holes (dilation followed by erosion)
         cleaned_mask = cv2.morphologyEx(final_mask, cv2.MORPH_OPEN, kernel)
         cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (100, 100)))
-
-        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (20, 10)))
-
-        
         return cleaned_mask
 
 if __name__ == "__main__":
     # Load the image
-    image = cv2.imread('./data/qsd2_w2/00018.jpg')
-
+    image = cv2.imread('./data/qsd2_w3/00000.jpg')
     background = CalculateBackground(image)
 
+    # Step 1: Compute gradients manually
+    gradient_magnitude = background.compute_gradients_manual(image)
+    background.display_image(gradient_magnitude, "Manual Gradient Magnitude")
 
-    seed_points = [
-        (0, 0),  # Top-left corner
-        (image.shape[1] - 1, 0),  # Top-right corner
-        (0, image.shape[0] - 1),  # Bottom-left corner
-        (image.shape[1] - 1, image.shape[0] - 1),  # Bottom-right corner
-    ]
+    # Step 2: Detect contours based on manual gradients
+    contours, edges = background.detect_contours_from_gradients(gradient_magnitude)
 
-    edge_map = background.adaptive_thresholding(image)
+    # Step 3: Draw contours on the image (optional visualization)
+    background.draw_contours(contours)
 
-    # Save edge map
-    cv2.imwrite('./data/qsd2_w2/edge_map.jpg', edge_map)
+    # Step 4: Apply flood fill using the detected contours
+    tot_mask = background.flood_fill_from_contours(contours)
 
-# Perform region growing for each seed point and stack the masks
-    tot_mask = np.zeros(image.shape[:2], dtype=np.uint8)
-    for seed in seed_points:
-        mask = background.flood_fill_region_with_edges(seed, tolerance=5, edge_map=edge_map)
-        tot_mask = np.maximum(tot_mask, mask)
+    # Save the flood-filled mask
+    cv2.imwrite('./data/qsd2_w2/flood_filled.jpg', cv2.bitwise_not(tot_mask))
 
-    # Save total mask
-    cv2.imwrite('./data/qsd2_w2/flood.jpg', cv2.bitwise_not(tot_mask))
-
-    # Apply the mask to get the foreground
-    foreground = background.apply_mask(tot_mask)
-
-    final_mask = background.color_thresholding_simple(0, foreground)
-
-    
-
-    tot_mask = tot_mask + final_mask
-
-    # Save color thresholding mask
-    cv2.imwrite('./data/qsd2_w2/color_thresholding.jpg', cv2.bitwise_not(tot_mask))
-
+    # Apply mask and morphological cleansing
     final_image = background.morphological_operations_cleanse(tot_mask)
     final_image = cv2.bitwise_not(final_image)
 
     # Save final image
     cv2.imwrite('./data/qsd2_w2/final_image.jpg', final_image)
+
