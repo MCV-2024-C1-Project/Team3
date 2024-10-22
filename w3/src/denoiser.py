@@ -10,19 +10,23 @@ class LinearDenoiser():
         self.img = image
 
     def boxFilter(self, kernelSize):
-        return cv2.blur(self.img, (kernelSize, kernelSize))
+        img=self.img.copy()
+        return cv2.blur(img, (kernelSize, kernelSize))
     
     def medianFilter(self, kernelSize):
-        return cv2.medianBlur(self.img, kernelSize)
+        img = self.img.copy()
+        return cv2.medianBlur(img, kernelSize)
     
     def midPointFilter(self, kernelSize):
         return True
     
     def butterworthLowPassFilter(self, d0, n):
 
-        if len(self.img.shape) == 3:
+        img = self.img.copy()
+
+        if len(img.shape) == 3:
             # Separate the image color channels
-            b, g, r = cv2.split(self.img)
+            b, g, r = cv2.split(img)
 
             # Apply the filter to each channel
             b_filtered = self.butterworthGrayLowPass(b, d0, n)
@@ -35,7 +39,7 @@ class LinearDenoiser():
         
         else:
             # If the image is on grayscale, apply directly
-            return self.butterworthGrayLowPass(self.img, d0, n)
+            return self.butterworthGrayLowPass(img, d0, n)
     
     def butterworthGrayLowPass(self, channelImg, d0, n):
 
@@ -62,20 +66,25 @@ class LinearDenoiser():
         return True
     
     def gaussianFilter(self, kernelSize, sigmaX):
-        return cv2.GaussianBlur(self.img, (kernelSize, kernelSize), sigmaX)
+        img = self.img.copy()
+        return cv2.GaussianBlur(img, (kernelSize, kernelSize), sigmaX)
     
     def bilateralFilter(self, d, sigmaColor, sigmaSpace):
-        return cv2.bilateralFilter(self.img, d, sigmaColor, sigmaSpace)
+        img = self.img.copy()
+        return cv2.bilateralFilter(img, d, sigmaColor, sigmaSpace)
     
     def Convolution2DFilter(self, kernelSize):
+        img = self.img.copy()
         kernel = np.ones((kernelSize, kernelSize), np.float32) / (kernelSize * kernelSize)
-        return cv2.filter2D(self.img, -1, kernel)
+        return cv2.filter2D(img, -1, kernel)
     
     def fftLowPassFilter(self, cutoff):
 
-        if len(self.img.shape) == 3:
+        img = self.img.copy()
 
-            b, g, r = cv2.split(self.img)
+        if len(img.shape) == 3:
+
+            b, g, r = cv2.split(img)
 
             b_filtered = self.fftLowPassGray(b, cutoff)
             g_filtered = self.fftLowPassGray(g, cutoff)
@@ -84,7 +93,7 @@ class LinearDenoiser():
             filtered_image = cv2.merge((b_filtered, g_filtered, r_filtered))
             return filtered_image
         else:
-            return self.fftLowPassGray(self.img, cutoff)
+            return self.fftLowPassGray(img, cutoff)
 
     
     def fftLowPassGray(self, image, cutoff):
@@ -104,10 +113,12 @@ class LinearDenoiser():
         return img_back
     
     def gaussianLowPassFilter(self, sigma):
-        
-        if len(self.img.shape) == 3:
 
-            b, g, r = cv2.split(self.img)
+        img = self.img.copy()
+        
+        if len(img.shape) == 3:
+
+            b, g, r = cv2.split(img)
 
             b_filtered = self.gaussianLowPassGray(b, sigma)
             g_filtered = self.gaussianLowPassGray(g, sigma)
@@ -116,7 +127,7 @@ class LinearDenoiser():
             filtered_image = cv2.merge((b_filtered, g_filtered, r_filtered))
             return filtered_image
         else:
-            return self.gaussianLowPassGray(self.img, sigma)
+            return self.gaussianLowPassGray(img, sigma)
     
     def gaussianLowPassGray(self, image, sigma):
 
@@ -153,23 +164,32 @@ class LinearDenoiser():
         return denoised_image
 
     def waveletTransformFilter(self, wavelet_type):
-        b, g, r = cv2.split(self.img)
+
+        img = self.img.copy()
+        b, g, r = cv2.split(img)
         b_filtered = self.waveletTransformGray(b, wavelet_type)
         g_filtered = self.waveletTransformGray(g, wavelet_type)
         r_filtered = self.waveletTransformGray(r, wavelet_type)
         return cv2.merge((b_filtered, g_filtered, r_filtered))
+
+    
 class NonLinearDenoiser():
     def __init__(self, image):
         self.img = image
 
 class NoiseMetric():
     def psnr(self, orig_img, denoised_img):
-        mse = np.mean((denoised_img-orig_img)**2)
-        if mse == 0:
-            return float(200)
+        # Asegúrate de que las imágenes sean del mismo tamaño
+        assert orig_img.shape == denoised_img.shape, "Las dimensiones de las imágenes deben coincidir"
+        
+        # Si es una imagen a color (3 canales), calculamos el MSE para cada canal y promediamos
+        mse = np.mean((orig_img - denoised_img) ** 2, axis=(0, 1))  # Calcula MSE por canal
+        if np.mean(mse) == 0:
+            return float('inf')
         
         max_pixel = 255.0
-        psnr_value = 20 * log10(max_pixel / sqrt(mse))
+        # Calculamos el PSNR en cada canal y luego promediamos
+        psnr_value = 20 * log10(max_pixel / sqrt(np.mean(mse)))
         return psnr_value
 
     def ssim(self, orig_img, denoised_img):
@@ -195,62 +215,65 @@ if __name__ == "__main__":
     linear_psnr_wavhaar = []
     linear_psnr_wavdau =  []
     linear_psnr_wavdio = []
-
-    for image_path in os.listdir('./data/qsd1_w3'):
-        if image_path.endswith('.jpg'):
-            img = cv2.imread('./data/qsd1_w3/'+image_path)
-            img_orig = cv2.imread('./data/non_augmented/'+image_path)
+    psnr_orig = []
 
 
-            linear_denoiser = LinearDenoiser(img)
-
-            box_filter_denoised = linear_denoiser.boxFilter(3)
-            median_filter_denoised = linear_denoiser.medianFilter(3)
-            butterworth_denoised = linear_denoiser.butterworthLowPassFilter(30, 2)
-            gaussian_filter_denoised = linear_denoiser.gaussianFilter(3, 2)
-            bilateral_filter_denoised = linear_denoiser.bilateralFilter(9, 75, 75)
-            convolution_2d_denoised = linear_denoiser.Convolution2DFilter(3)
-            fft_denoised = linear_denoiser.fftLowPassFilter(30)
-            gaussian_low_denoised = linear_denoiser.gaussianLowPassFilter(30)
-            wavelet_haar_denoised = linear_denoiser.waveletTransformFilter('haar')
-            wavelet_dau_denoised = linear_denoiser.waveletTransformFilter('db1')
-            wavelet_bio_denoised = linear_denoiser.waveletTransformFilter('bior1.3')
-
-            box_filter_denoised = cv2.resize(box_filter_denoised, (img_orig.shape[1], img_orig.shape[0]))
+    img = cv2.imread('./data/qsd1_w3/00018.jpg')
+    img_orig = cv2.imread('./data/non_augmented/00018.jpg')
 
 
+    linear_denoiser = LinearDenoiser(img)
 
-            median_filter_denoised = cv2.resize(median_filter_denoised, (img_orig.shape[1], img_orig.shape[0]))
-            butterworth_denoised = cv2.resize(butterworth_denoised, (img_orig.shape[1], img_orig.shape[0]))
-            gaussian_filter_denoised = cv2.resize(gaussian_filter_denoised, (img_orig.shape[1], img_orig.shape[0]))
-            bilateral_filter_denoised = cv2.resize(bilateral_filter_denoised, (img_orig.shape[1], img_orig.shape[0]))
-            convolution_2d_denoised = cv2.resize(convolution_2d_denoised, (img_orig.shape[1], img_orig.shape[0]))
-            fft_denoised = cv2.resize(fft_denoised, (img_orig.shape[1], img_orig.shape[0]))
-            gaussian_low_denoised = cv2.resize(gaussian_low_denoised, (img_orig.shape[1], img_orig.shape[0]))
-            wavelet_haar_denoised = cv2.resize(wavelet_haar_denoised, (img_orig.shape[1], img_orig.shape[0]))
-            wavelet_dau_denoised = cv2.resize(wavelet_dau_denoised, (img_orig.shape[1], img_orig.shape[0]))
-            wavelet_bio_denoised = cv2.resize(wavelet_bio_denoised, (img_orig.shape[1], img_orig.shape[0]))
+    box_filter_denoised = linear_denoiser.boxFilter(3)
+    median_filter_denoised = linear_denoiser.medianFilter(13)
+    butterworth_denoised = linear_denoiser.butterworthLowPassFilter(20, 4)
+    gaussian_filter_denoised = linear_denoiser.gaussianFilter(9, 2)
+    bilateral_filter_denoised = linear_denoiser.bilateralFilter(13, 150, 25)
+    convolution_2d_denoised = linear_denoiser.Convolution2DFilter(13)
+    fft_denoised = linear_denoiser.fftLowPassFilter(55)
+    gaussian_low_denoised = linear_denoiser.gaussianLowPassFilter(30)
+    wavelet_haar_denoised = linear_denoiser.waveletTransformFilter('haar')
+    wavelet_dau_denoised = linear_denoiser.waveletTransformFilter('db1')
+    wavelet_bio_denoised = linear_denoiser.waveletTransformFilter('bior1.3')
+
+    box_filter_denoised = cv2.resize(box_filter_denoised, (img_orig.shape[1], img_orig.shape[0]))
+
+    median_filter_denoised = cv2.resize(median_filter_denoised, (img_orig.shape[1], img_orig.shape[0]))
+    butterworth_denoised = cv2.resize(butterworth_denoised, (img_orig.shape[1], img_orig.shape[0]))
+    gaussian_filter_denoised = cv2.resize(gaussian_filter_denoised, (img_orig.shape[1], img_orig.shape[0]))
+    bilateral_filter_denoised = cv2.resize(bilateral_filter_denoised, (img_orig.shape[1], img_orig.shape[0]))
+    convolution_2d_denoised = cv2.resize(convolution_2d_denoised, (img_orig.shape[1], img_orig.shape[0]))
+    fft_denoised = cv2.resize(fft_denoised, (img_orig.shape[1], img_orig.shape[0]))
+    gaussian_low_denoised = cv2.resize(gaussian_low_denoised, (img_orig.shape[1], img_orig.shape[0]))
+    wavelet_haar_denoised = cv2.resize(wavelet_haar_denoised, (img_orig.shape[1], img_orig.shape[0]))
+    wavelet_dau_denoised = cv2.resize(wavelet_dau_denoised, (img_orig.shape[1], img_orig.shape[0]))
+    wavelet_bio_denoised = cv2.resize(wavelet_bio_denoised, (img_orig.shape[1], img_orig.shape[0]))
 
 
-            linear_psnr_box.append(metrics.psnr(img_orig, box_filter_denoised))
-            linear_psnr_median.append(metrics.psnr(img_orig, median_filter_denoised))
-            linear_psnr_butterworth.append(metrics.psnr(img_orig, butterworth_denoised))
-            linear_psnr_gaussian.append(metrics.psnr(img_orig, gaussian_filter_denoised))
-            linear_psnr_bilateral.append(metrics.psnr(img_orig, bilateral_filter_denoised))
-            linear_psnr_conv.append(metrics.psnr(img_orig, convolution_2d_denoised))
-            linear_psnr_fft.append(metrics.psnr(img_orig, fft_denoised))
-            linear_psnr_gauslow.append(metrics.psnr(img_orig, gaussian_low_denoised))
-            linear_psnr_wavhaar.append(metrics.psnr(img_orig, wavelet_haar_denoised))
-            linear_psnr_wavdau.append(metrics.psnr(img_orig, wavelet_dau_denoised))
-            linear_psnr_wavdio.append(metrics.psnr(img_orig, wavelet_bio_denoised))
+    linear_psnr_box.append(metrics.psnr(img_orig, box_filter_denoised))
+    linear_psnr_median.append(metrics.psnr(img_orig, median_filter_denoised))
+    linear_psnr_butterworth.append(metrics.psnr(img_orig, butterworth_denoised))
+    linear_psnr_gaussian.append(metrics.psnr(img_orig, gaussian_filter_denoised))
+    linear_psnr_bilateral.append(metrics.psnr(img_orig, bilateral_filter_denoised))
+    linear_psnr_conv.append(metrics.psnr(img_orig, convolution_2d_denoised))
+    linear_psnr_fft.append(metrics.psnr(img_orig, fft_denoised))
+    linear_psnr_gauslow.append(metrics.psnr(img_orig, gaussian_low_denoised))
+    linear_psnr_wavhaar.append(metrics.psnr(img_orig, wavelet_haar_denoised))
+    linear_psnr_wavdau.append(metrics.psnr(img_orig, wavelet_dau_denoised))
+    linear_psnr_wavdio.append(metrics.psnr(img_orig, wavelet_bio_denoised))
+    psnr_orig.append(metrics.psnr(img_orig, img))
 
 
 
-    
+    print("----------------------------------------------------------------------------------------------------------------------\n")
+    print("PSNR OF ORIGINAL IMAGE AND NOISY")
+    print("Mean error --- PSNR: " + str(np.mean(psnr_orig))+"\n")
+
+
     print("----------------------------------------------------------------------------------------------------------------------\n")
     print("LINEAR DENOISING METHODS: EVALUATION \n")
 
-    print("Box Filter --- PSNR: " + str(np.mean(linear_psnr_box)) + "\n")
+    print("Box Filter --- PSNR: " + str(np.mean(linear_psnr_box)) +"\n")
     print("Median filter --- PSNR: "+ str(np.mean(linear_psnr_median))+"\n")
     print("Butterworth filter --- PSNR: "+str(np.mean(linear_psnr_butterworth))+"\n")
     print("Gaussian filter --- PSNR: "+str(np.mean(linear_psnr_gaussian))+"\n")
