@@ -409,17 +409,13 @@ class TextureDescriptor:
             image3 = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         if structure=='DCT':
-            m,n=image.shape
+            img=cv2.resize(image, (400,400), interpolation= cv2.INTER_LINEAR)
+
+            m,n=img.shape
             x=8
             y=8
-
-            x0=m+(x-(m%x))
-            y0=n+(y-(n%y))
-            img=np.uint8(np.zeros((x0,y0)))
-            img[0:m,0:n]=image
-
-            nblock_x=int(x0/x)
-            nblock_y=int(y0/y)
+            nblock_x=int(m/x)
+            nblock_y=int(n/y)
 
             divided_img=self.block(img,[nblock_x,nblock_y])
             
@@ -430,8 +426,7 @@ class TextureDescriptor:
                     coefs=self.quantize(coefs)
                     # print(coefs)
                 zz=self.zigzag(coefs)
-                # print(zz)
-                descriptor.append(zz[0:10])
+                descriptor.append(list(zz[0:10]))
             return descriptor
 
 
