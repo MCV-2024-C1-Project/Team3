@@ -226,20 +226,11 @@ def background_images(qsd_folder):
                     continue
                 
                 background = CalculateBackground(image)
-                seed_points = [(0, 0), (image.shape[1] - 1, 0), (0, image.shape[0] - 1), (image.shape[1] - 1, image.shape[0] - 1)]
+                mask_contours = background.process_frames()
+                
+                # Realizar operaciones morfológicas finales para limpiar la máscara
+                final_image = background.morphological_operations_cleanse(mask_contours)
 
-                edge_map = background.adaptive_thresholding(image)
-                tot_mask = np.zeros(image.shape[:2], dtype=np.uint8)
-
-                for seed in seed_points:
-                    mask = background.flood_fill_region_with_edges(seed, tolerance=5, edge_map=edge_map)
-                    tot_mask = np.maximum(tot_mask, mask)
-
-                foreground = background.apply_mask(tot_mask)
-                final_mask = background.color_thresholding_simple(0, foreground)
-                tot_mask = tot_mask + final_mask
-                final_image = background.morphological_operations_cleanse(tot_mask)
-                final_image = cv2.bitwise_not(final_image)
 
                 cv2.imwrite(os.path.join(MASK_FOLDER, image_name.split('.')[0] + ".png"), final_image)
 
