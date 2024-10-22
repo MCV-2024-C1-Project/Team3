@@ -2,6 +2,7 @@
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.fftpack import dct
 
 class ImageDescriptor:
     COLOR_RANGES = {
@@ -223,6 +224,7 @@ class ImageDescriptor:
                                     hist.append(h.flatten())
                     histograms[b] = {'histogram': np.concatenate(hist).flatten()}
                 return histograms
+            
 
     def save_histogram(self, hist, output_path):
         #Create figure with 3 subplots
@@ -242,3 +244,198 @@ class ImageDescriptor:
 
         # fig.savefig(output_path,bbox_inches='tight') #store image
         plt.close()  # Close the figure to free up memory
+
+class TextureDescriptor:
+    COLOR_RANGES = {
+        'HLS': [[0, 256], [0, 256], [0, 256]],
+        'HSV': [[0, 256], [0, 256], [0, 256]],
+        'XYZ': [[0, 256], [0, 256], [0, 256]],
+        'RGB': [[0, 256], [0, 256], [0, 256]],
+        'LAB': [[0, 256], [0, 256], [0, 256]],
+        'YCrCb': [[0, 256], [0, 256], [0, 256]],
+        'combine':[[0, 256], [0, 256], [0, 256]],
+        'gray':[0,256]
+    }
+    def __init__(self, color_space):
+
+        self.color_space = color_space
+
+        if color_space not in self.COLOR_RANGES:
+            raise ValueError(f"Unsupported color space: {color_space}")
+
+    def block(self, image, nblocks):
+        divide1 = np.array_split(image, nblocks[0], axis=0)
+        divide2 = [np.array_split(subimg, nblocks[1], axis=1) for subimg in divide1]
+        subimgs = [img for row in divide2 for img in row]
+
+        return subimgs
+    
+    def dctn(self,x, norm="ortho"):
+        x=x-np.ones(np.shape(x))*128
+        for i in range(x.ndim):
+            x = dct(x, axis=i, norm=norm)
+        return np.array(x)
+
+    def quantize(self,dctresult):
+        mat=np.array(
+            [[16,11,10,16,24,40,51,61],
+            [12,12,14,19,26,58,60,55],
+            [14,13,16,24,40,57,69,56],
+            [14,17,22,29,51,87,80,62],
+            [18,22,37,56,68,109,103,77],
+            [24,35,55,64,81,104,113,92],
+            [49,64,78,87,103,121,120,101],
+            [72,92,95,98,112,100,103,99]])
+        return dctresult//mat
+    
+
+    def zigzag(self,input):
+        # Zigzag scan of a matrix
+        # Argument is a two-dimensional matrix of any size,
+        # not strictly a square one.
+        # Function returns a 1-by-(m*n) array,
+        # where m and n are sizes of an input matrix,
+        # consisting of its items scanned by a zigzag method.
+        #
+        # Matlab Code:
+        # Alexey S. Sokolov a.k.a. nICKEL, Moscow, Russia
+        # June 2007
+        # alex.nickel@gmail.com
+        
+        
+        #initializing the variables
+        #----------------------------------
+        h = 0
+        v = 0
+
+        vmin = 0
+        hmin = 0
+
+        vmax = input.shape[0]
+        hmax = input.shape[1]
+        
+        #print(vmax ,hmax )
+
+        i = 0
+
+        output = np.zeros(( vmax * hmax))
+        #----------------------------------
+
+        while ((v < vmax) and (h < hmax)):
+            
+            if ((h + v) % 2) == 0:                 # going up
+                
+                if (v == vmin):
+                    #print(1)
+                    output[i] = input[v, h]        # if we got to the first line
+
+                    if (h == hmax):
+                        v = v + 1
+                    else:
+                        h = h + 1                        
+
+                    i = i + 1
+
+                elif ((h == hmax -1 ) and (v < vmax)):   # if we got to the last column
+                    #print(2)
+                    output[i] = input[v, h] 
+                    v = v + 1
+                    i = i + 1
+
+                elif ((v > vmin) and (h < hmax -1 )):    # all other cases
+                    #print(3)
+                    output[i] = input[v, h] 
+                    v = v - 1
+                    h = h + 1
+                    i = i + 1
+
+            
+            else:                                    # going down
+
+                if ((v == vmax -1) and (h <= hmax -1)):       # if we got to the last line
+                    #print(4)
+                    output[i] = input[v, h] 
+                    h = h + 1
+                    i = i + 1
+            
+                elif (h == hmin):                  # if we got to the first column
+                    #print(5)
+                    output[i] = input[v, h] 
+
+                    if (v == vmax -1):
+                        h = h + 1
+                    else:
+                        v = v + 1
+
+                    i = i + 1
+
+                elif ((v < vmax -1) and (h > hmin)):     # all other cases
+                    #print(6)
+                    output[i] = input[v, h] 
+                    v = v + 1
+                    h = h - 1
+                    i = i + 1
+
+
+
+
+            if ((v == vmax-1) and (h == hmax-1)):          # bottom right element
+                #print(7)        	
+                output[i] = input[v, h] 
+                break
+
+        #print ('v:',v,', h:',h,', i:',i)
+        return output
+
+
+    def describe(self, image, structure, quantization):
+        if self.color_space == 'HLS':
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2HLS_FULL)
+        elif self.color_space == 'HSV':
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV_FULL)
+        elif self.color_space == 'XYZ':
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2XYZ)
+        elif self.color_space == 'RGB':
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        elif self.color_space == 'LAB':
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        elif self.color_space == 'YCrCb':
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)   
+        elif self.color_space=='gray':
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) 
+        elif self.color_space=='combine':
+            image1 = cv2.cvtColor(image, cv2.COLOR_BGR2HSV_FULL)
+            image2 = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+            image3 = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        if structure=='DCT':
+            m,n=image.shape
+            x=8
+            y=8
+
+            x0=m+(x-(m%x))
+            y0=n+(y-(n%y))
+            img=np.uint8(np.zeros((x0,y0)))
+            img[0:m,0:n]=image
+
+            nblock_x=int(x0/x)
+            nblock_y=int(y0/y)
+
+            divided_img=self.block(img,[nblock_x,nblock_y])
+            
+            descriptor=[]
+            for subimg in divided_img:
+                coefs=self.dctn(subimg)
+                if quantization:
+                    coefs=self.quantize(coefs)
+                    # print(coefs)
+                zz=self.zigzag(coefs)
+                # print(zz)
+                descriptor.append(zz[0:10])
+            return descriptor
+
+
+
+                
+
+            
