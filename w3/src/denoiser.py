@@ -5,6 +5,63 @@ import os
 from math import log10, sqrt
 from skimage.metrics import structural_similarity as ssim
 
+class NoiseEstimation():
+    def __init__(self, img):
+        self.img = img
+
+    def noise_estimation_std(self, threshold):
+        img = self.img.copy()
+
+        deviation = np.std(img)
+
+        if deviation > theshold:
+            return True
+        else:
+            return False
+
+    def noise_estimation_fft(self, threshold):
+        img = self.img.copy()
+
+        f = np.fft.fft2(img)
+        fshift = np.fft.fftshift(f)
+        magnitude_spectrum  = np.log(np.abs(fshift) + 1)
+        high_freq_energy = np.sum(magnitude_spectrum[rows//2:, cols//2:])
+        
+        if high_freq_energy > threshold:
+            return True
+        else:
+            return False
+
+    def noise_estimation_tv(self, threshold):
+        img = self.img.copy()
+
+        grad_x = np.roll(img, -1, axis=1) - img
+        grad_y = np.roll(img, -1, axis=0) - img
+        tv_norm = np.sum(np.sqrt(grad_x**2 + grad_y**2))
+
+        if tv_norm > threshold:
+            return True
+        else:
+            return False
+
+    def noise_estimation_psnr(self):
+        pass
+
+    def noise_estimation_snr(self, orig_img, threshold):
+        img = self.img.copy()
+
+        signal_power = np.mean(orig_img)
+        noise_power = np.mean((img - orig_img) ** 2)
+        snr = 10 * np.log10(signal_power / noise_power)
+
+        if snr < threshold:
+            return True
+        else:
+            return False
+
+    def noise_estimation_wavelet(self):
+        pass
+
 class LinearDenoiser():
     def __init__(self, image):
         self.img = image
@@ -16,9 +73,6 @@ class LinearDenoiser():
     def medianFilter(self, kernelSize):
         img = self.img.copy()
         return cv2.medianBlur(img, kernelSize)
-    
-    def midPointFilter(self, kernelSize):
-        return True
     
     def butterworthLowPassFilter(self, d0, n):
 
@@ -61,9 +115,6 @@ class LinearDenoiser():
         img_back = np.abs(img_back)
 
         return np.uint8(np.clip(img_back, 0, 255))
-    
-    def nyquistFilter(self):
-        return True
     
     def gaussianFilter(self, kernelSize, sigmaX):
         img = self.img.copy()
@@ -176,6 +227,111 @@ class LinearDenoiser():
 class NonLinearDenoiser():
     def __init__(self, image):
         self.img = image
+
+    def rof_denoising(self, lambda_val = 0.125, n_iter = 100, tau = 0.125, tol = 1e-5):
+        img = self.img.copy()
+        if len(img.shape) == 3:
+            channels = cv2.split(img)
+            denoised_channels = [self.rof_denoise_channel(channel,lambda_val, n_iter, tau, tol) for channel in channels]
+            return cv2.merge(denoised_channels)
+        else:
+            return self.rof_denoise_channel(img, lambda_val, n_iter, tau, tol)
+
+    def rof_denoise_channel(self, channel_img, lambda_val, n_iter, tau, tol):
+        # Initial values
+        u = channel_img.astype(np.float64)
+        px = np.zeros_like(channel_img)
+        py = np.zeros_like(channel_img)
+        grad_norm = np.zeros_like(channel_img)
+
+        # Gradient operators (forward difference)
+        grad_x = lambda u: np.roll(u, -1, axis=1) - u
+        grad_y = lambda u: np.roll(u, -1, axis=0) - u
+
+        # Divergence operator (backward difference)
+        div = lambda px, py: np.roll(px, 1, axis=1) - px + np.roll(py, 1, axis=0) - py
+
+        for i in range(n_iter):
+            # Compute gradient of u
+            u_grad_x = grad_x(u)
+            u_grad_y = grad_y(u)
+
+            # Update dual variables
+            px_new = px + tau * u_grad_x
+            py_new = py + tau * u_gray_y
+
+            # Compute the norm of the dual variables
+            grad_norm = np.maximum(1.0, np.sqrt(px_new**2 + py_new**2))
+
+            # Normalize the dual variables
+            px = px_new / grad_norm
+            py = py_new / grad_norm
+
+            # Update the denoised image u
+            u_old = u
+            u = channel_img + lambda_val * div(px, py)
+
+            # Check for convergence
+            if np.linalg.norm(u - u_old) / np.linalg.norm(u) < tol:
+                break
+
+        return u
+
+    def non_local_means_denoising(self, h = 10, templateWindowSize = 7, searchWindowSize = 21):
+        img = self.img.copy()
+        # Ensure the image is in the right format (float32)
+        if img.dtype != np.float32:
+            img = img.astype(np.float32) / 255.0
+
+        # Apply Non-local Means Denoising
+        denoised_image = cv2.fastN1MeansDenoising(img, None, h, templateWindowSize, searchWindowSize)
+
+        # Convert back to uint8 format if the original image was in that type
+        return np.uint8(np.clip(denoised_image * 255, 0, 255))
+
+    def bmd3_denoising(self, block_size = 7, search_window = 21, h = 10):
+        img = self.img.copy()
+
+        padded_img = cv2.copyMakeBorder(img, block_size // 2, block_size // 2,
+                                            block_size // 2, block_size // 2,
+                                            cv2.BORDER_REFLECT)
+        denoised_img = np.zeros_like(img)
+
+        for i in range(img.shape[0]):
+            for j in range(img.shape[1]):
+                # Extract the current block
+                current_block = padded_img[i:i + block_size, j: j + block_size]
+
+                # Initialize weight and pixel accumulator
+                weight_sum = 0
+                denoised_pixel = 0
+
+                # Search for similar blocks
+                for m in range(-search_window // 2, search_window // 2 + 1):
+                    for n in range(-search_window // 2, search_window // 2 + 1):
+                        # Get coordinates for similar block
+                        y = i + block_size // 2 + m
+                        x = j + block_size // 2 + n
+
+                        # Ensure we are within the image bounds
+                        if y >= 0 and y + block_size <= padded_img.shape[0] and x >= 0 and x + block_size <= padded_img.shape[1]:
+                            similar_block = padded_img[y:y + block_size, x:x + block_size]
+
+                            # Calculate the weight based on similarity
+                            distance = np.sum((current_block - similar_block) ** 2)
+                            weight = np.exp(-distance / (h ** 2))
+
+                            # Accumulate weighted pixel values
+                            denoised_pixel += weight * padded_img[y + block_size // 2, x + block_size // 2]
+                            weight_sum += weight
+                
+                # Final denoised pixel value
+                if weight_sum > 0:
+                    denoised_img[i, j] = denoised_pixel / weight_sum
+                else:
+                    denoised_img[i, j] = img[i, j]
+
+        return np.clip(denoised_img, 0, 255). astype(np.uint8)
 
 class NoiseMetric():
     def psnr(self, orig_img, denoised_img):
