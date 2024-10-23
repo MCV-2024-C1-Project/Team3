@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+from denoiser import LinearDenoiser
 
 class CalculateBackground():
     def __init__(self, image):
@@ -12,8 +13,122 @@ class CalculateBackground():
         plt.title(title)
         plt.axis('off')
         plt.show()
+        
+    def detect_contours_with_laplacian(self):
+        """Detect contours in the image using Laplacian edge detection."""
+        gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+
+        # Aplicar el filtro Laplaciano para calcular el gradiente
+        laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+        laplacian = np.uint8(np.absolute(laplacian))  # Convertir a uint8 para visualizarlo
+
+        # Aplicar un umbral para obtener los bordes binarios
+        _, edges = cv2.threshold(laplacian, 30, 255, cv2.THRESH_BINARY)
+
+        # Aplicar una dilatación para cerrar brechas entre bordes
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))  
+        edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)  
+
+        # Guardar la imagen de los bordes detectados
+        cv2.imwrite('./data/qsd2_w2/edges.jpg', edges)
+
+        # Encontrar los contornos
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        possible_frames = []
+        contour_image = self.image.copy()
+
+        mask_contours = np.zeros(self.image.shape[:2], dtype=np.uint8)  # Máscara para los contornos
+
+        for cnt in contours:
+            possible_frames.append(cnt)
+            cv2.drawContours(mask_contours, [cnt], -1, 255, -1)  # Dibujar el contorno cerrado en la máscara
+            cv2.drawContours(contour_image, [cnt], -1, (0, 255, 0), 5)  # Dibujar en la imagen de contorno
+
+        # Guardar la imagen con los contornos detectados
+        cv2.imwrite('./data/qsd2_w2/contour_image.jpg', contour_image)
+        cv2.imwrite('./data/qsd2_w2/mask_contours.jpg', mask_contours)
+
+        return mask_contours
     
-    def detect_contours_with_gradients(self, output_dir='./data/qsd2_w2/'):
+    def detect_contours_with_prewitt(self, output_dir='./data/qsd2_w2/'):
+        """Detect contours in the image using Prewitt filter."""
+        gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+
+        # Aplicar los operadores Prewitt en x y y
+        kernelx = np.array([[1, 0, -1], [1, 0, -1], [1, 0, -1]])
+        kernely = np.array([[1, 1, 1], [0, 0, 0], [-1, -1, -1]])
+
+        prewitt_x = cv2.filter2D(gray, -1, kernelx)  # Gradiente en x
+        prewitt_y = cv2.filter2D(gray, -1, kernely)  # Gradiente en y
+
+        # Calcular la magnitud total del gradiente
+        magnitude = np.sqrt(np.square(prewitt_x) + np.square(prewitt_y))
+        magnitude = np.uint8(magnitude)
+
+        # Aplicar un umbral para obtener los bordes binarios
+        _, edges = cv2.threshold(magnitude, 30, 255, cv2.THRESH_BINARY)
+
+        # Aplicar una dilatación para cerrar brechas entre bordes
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))  
+        edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)  
+
+        # Guardar la imagen de los bordes detectados
+        cv2.imwrite('./data/qsd2_w2/edges.jpg', edges)
+
+        # Encontrar los contornos
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        possible_frames = []
+        contour_image = self.image.copy()
+
+        mask_contours = np.zeros(self.image.shape[:2], dtype=np.uint8)  # Máscara para los contornos
+
+        for cnt in contours:
+            possible_frames.append(cnt)
+            cv2.drawContours(mask_contours, [cnt], -1, 255, -1)  # Dibujar el contorno cerrado en la máscara
+            cv2.drawContours(contour_image, [cnt], -1, (0, 255, 0), 5)  # Dibujar en la imagen de contorno
+
+        # Guardar la imagen con los contornos detectados
+        cv2.imwrite('./data/qsd2_w2/contour_image.jpg', contour_image)
+        cv2.imwrite('./data/qsd2_w2/mask_contours.jpg', mask_contours)
+
+        return mask_contours
+    
+    def detect_contours_with_canny(self):
+        """Detect contours in the image using Canny edge detection."""
+        gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+
+        # Aplicar filtro de Canny (Los umbrales pueden ajustarse según las necesidades)
+        edges = cv2.Canny(gray, 10, 200)
+
+        # Aplicar una dilatación para cerrar brechas entre bordes
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))  
+        edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)  
+
+        # Guardar la imagen de los bordes detectados
+        cv2.imwrite('./data/qsd2_w2/edges.jpg', edges)
+
+        # Encontrar los contornos
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        possible_frames = []
+        contour_image = self.image.copy()
+
+        mask_contours = np.zeros(self.image.shape[:2], dtype=np.uint8)  # Máscara para los contornos
+
+        for cnt in contours:
+            possible_frames.append(cnt)
+            cv2.drawContours(mask_contours, [cnt], -1, 255, -1)  # Dibujar el contorno cerrado en la máscara
+            cv2.drawContours(contour_image, [cnt], -1, (0, 255, 0), 5)  # Dibujar en la imagen de contorno
+
+        cv2.imwrite('./data/qsd2_w2/contour_image.jpg', contour_image)
+        cv2.imwrite('./data/qsd2_w2/mask_contours.jpg', mask_contours)
+
+        return mask_contours
+
+    
+    def detect_contours_with_gradients(self):
         """Detect contours in the image using gradient-based edge detection."""
         gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
 
@@ -31,7 +146,7 @@ class CalculateBackground():
         magnitude = np.uint8(magnitude)
 
         # Aplicar un umbral para obtener los bordes binarios
-        _, edges = cv2.threshold(magnitude, 40, 255, cv2.THRESH_BINARY)
+        _, edges = cv2.threshold(magnitude, 15, 255, cv2.THRESH_BINARY)
 
         # Aplicar una dilatación para cerrar brechas entre bordes
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))  # Kernel de 5x5 para operaciones morfológicas
@@ -73,6 +188,9 @@ class CalculateBackground():
     def process_frames(self):
         """Process only contours (frames) detection."""
         mask_contours = self.detect_contours_with_gradients()
+        # mask_contours = self.detect_contours_with_laplacian()
+        # mask_contours = self.detect_contours_with_prewitt()
+        # mask_contours = self.detect_contours_with_canny()
         
         cv2.imwrite('./data/qsd2_w2/combined_mask.jpg', mask_contours)
 
@@ -95,7 +213,11 @@ class CalculateBackground():
 if __name__ == "__main__":
     # Cargar la imagen
     image = cv2.imread('./data/qsd2_w3/00022.jpg')
-    background = CalculateBackground(image)
+    linear_denoiser = LinearDenoiser(image)
+    
+    denoise_image = linear_denoiser.medianFilter(5)
+    cv2.imwrite('./data/qsd2_w2/denoise_image.jpg', denoise_image)
+    background = CalculateBackground(denoise_image)
 
     # Detectar contornos
     mask_contours = background.process_frames()
