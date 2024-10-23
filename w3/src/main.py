@@ -16,15 +16,16 @@ parser = argparse.ArgumentParser(description='Process image folder for similarit
 parser.add_argument('images_folder', type=str, help='Path to the image folder (e.g., ./data/qsd1_w3)')
 parser.add_argument('structure', type=str, help='DCT or LSB or DWT')
 parser.add_argument('colorspace', type=str, help='Histogram colorspace (e.g., HSV')
-parser.add_argument('quantization', type=bool,default=False, help='Quantize dct descriptor')
+# parser.add_argument('quantization', type=bool, help='Quantize dct descriptor')
 parser.add_argument('measure', type=str, help='Similarity measure (e.g., intersection')
 args = parser.parse_args()
+
 
 # Define input folder based on argument
 qsd_folder = args.images_folder
 structure = args.structure
 colorspace = args.colorspace
-quantization = args.quantization
+quantization = False
 measure = args.measure
     
 
