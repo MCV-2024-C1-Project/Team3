@@ -225,6 +225,7 @@ def background_images(qsd_folder):
                 if image is None:
                     print(f"Error loading image {image_name}")
                     continue
+                print(f"{image_name}")
                 linear_denoiser = LinearDenoiser(image)
     
                 denoise_image = linear_denoiser.medianFilter(5)
@@ -233,7 +234,24 @@ def background_images(qsd_folder):
                 mask_contours = background.process_frames()
                 
                 # Realizar operaciones morfológicas finales para limpiar la máscara
-                final_image = background.morphological_operations_cleanse(mask_contours)
+                cleaned_mask = background.morphological_operations_cleanse(mask_contours)
+                
+                # Encontrar todos los contornos en la máscara
+                contours, _ = cv2.findContours(cleaned_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                
+                # Filtrar los contornos por un área mínima
+                large_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 10000]
+                
+                # Ordenar los contornos por área en orden descendente
+                large_contours = sorted(large_contours, key=cv2.contourArea, reverse=True)
+                
+                # Seleccionar solo los contornos más grandes (ej: 2 más grandes)
+                largest_contours = large_contours[:2]
+                
+                # Crear una nueva máscara con solo los contornos seleccionados
+                final_image = np.zeros(cleaned_mask.shape, dtype=np.uint8)
+                for cnt in largest_contours:
+                    cv2.drawContours(final_image, [cnt], -1, 255, thickness=cv2.FILLED)
 
 
                 cv2.imwrite(os.path.join(MASK_FOLDER, image_name.split('.')[0] + ".png"), final_image)

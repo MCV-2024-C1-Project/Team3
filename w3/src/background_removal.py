@@ -126,12 +126,62 @@ class CalculateBackground():
         cv2.imwrite('./data/qsd2_w2/mask_contours.jpg', mask_contours)
 
         return mask_contours
+    
+    def fourier_transform_background_detection(self):
+        """Detect background using Fourier Transform (frequency domain analysis)."""
+        gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+        
+        # Apply DFT (Discrete Fourier Transform)
+        dft = cv2.dft(np.float32(gray), flags=cv2.DFT_COMPLEX_OUTPUT)
+        dft_shift = np.fft.fftshift(dft)  # Shift zero frequency to center
+
+        # Get magnitude spectrum
+        # magnitude_spectrum = 20 * np.log(cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1]))
+
+        # Create a mask with a high-pass filter (remove low frequencies, retain high frequencies)
+        rows, cols = gray.shape
+        crow, ccol = rows // 2, cols // 2  # Center point
+        mask = np.ones((rows, cols, 2), np.uint8)
+        r = 40  # Radius of the high-pass filter
+        mask[crow - r:crow + r, ccol - r:ccol + r] = 0  # Masking the center (low frequencies)
+
+        # Apply the mask and inverse DFT
+        fshift = dft_shift * mask
+        f_ishift = np.fft.ifftshift(fshift)
+        img_back = cv2.idft(f_ishift)
+        img_back = cv2.magnitude(img_back[:, :, 0], img_back[:, :, 1])
+
+        # Normalize and threshold the result to obtain a binary mask
+        img_back = cv2.normalize(img_back, None, 0, 255, cv2.NORM_MINMAX)
+        _, freq_mask = cv2.threshold(np.uint8(img_back), 50, 255, cv2.THRESH_BINARY)
+
+        # Optionally apply some morphological operations to clean the frequency mask
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+        freq_mask = cv2.morphologyEx(freq_mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+
+        # Save the mask for visualization
+        cv2.imwrite('./data/qsd2_w2/frequency_mask.jpg', freq_mask)
+        
+        # Encontrar los contornos en la máscara de frecuencias
+        contours, _ = cv2.findContours(freq_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Crear una máscara de contornos de frecuencias
+        mask_contours_frequencies = np.zeros(self.image.shape[:2], dtype=np.uint8)
+
+        # Rellenar los contornos detectados en la máscara
+        for cnt in contours:
+            cv2.drawContours(mask_contours_frequencies, [cnt], -1, 255, -1)  # Rellenar contornos
+
+        # Guardar la máscara de contornos de frecuencias
+        cv2.imwrite('./data/qsd2_w2/frequency_contours_mask.jpg', mask_contours_frequencies)
+
+        return mask_contours_frequencies
 
     
     def detect_contours_with_gradients(self):
         """Detect contours in the image using gradient-based edge detection."""
-        gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
-
+        gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2HLS)[:, :, 1]
+        
         # Aplicar operador Sobel para calcular los gradientes en x y y
         grad_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=7)  # Gradiente en x
         grad_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=7)  # Gradiente en y
@@ -187,14 +237,34 @@ class CalculateBackground():
 
     def process_frames(self):
         """Process only contours (frames) detection."""
-        mask_contours = self.detect_contours_with_gradients()
+        # mask_contours = self.detect_contours_with_gradients()
         # mask_contours = self.detect_contours_with_laplacian()
         # mask_contours = self.detect_contours_with_prewitt()
         # mask_contours = self.detect_contours_with_canny()
         
-        cv2.imwrite('./data/qsd2_w2/combined_mask.jpg', mask_contours)
+        edges_mask = self.detect_contours_with_gradients()
+        
 
-        return mask_contours
+        # # Detect background using Fourier Transform and find contours
+        # frequency_mask = self.fourier_transform_background_detection()
+
+        # # Convert both masks to float32 for weighted sum
+        # edges_mask = np.float32(edges_mask)
+        # frequency_mask = np.float32(frequency_mask)
+
+        # # Apply a weighted sum to prioritize edges over frequencies
+        # weighted_combination = cv2.addWeighted(edges_mask, 0.7, frequency_mask, 0.3, 0)
+
+        # # Threshold the combined result to get a binary mask
+        # _, combined_mask = cv2.threshold(weighted_combination, 20, 255, cv2.THRESH_BINARY)
+
+        # # Convert back to uint8
+        # combined_mask = np.uint8(combined_mask)
+        
+        # # Guardar la máscara combinada ponderada
+        # cv2.imwrite('./data/qsd2_w2/weighted_combined_mask.jpg', combined_mask)
+
+        return edges_mask
 
     def apply_mask(self, mask):
         """Apply the mask to the original image to extract the foreground."""
@@ -203,16 +273,16 @@ class CalculateBackground():
 
     def morphological_operations_cleanse(self, final_mask):
         """Apply morphological operations to clean the mask."""
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (100, 1))
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (120, 1))
         cleaned_mask = cv2.morphologyEx(final_mask, cv2.MORPH_OPEN, kernel)
-        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (20, 20)))
-        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (20, 20)))
+        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (10, 10)))
+        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (10, 10)))
         
         return cleaned_mask
 
 if __name__ == "__main__":
     # Cargar la imagen
-    image = cv2.imread('./data/qsd2_w3/00022.jpg')
+    image = cv2.imread('./data/qsd2_w3/00008.jpg')
     linear_denoiser = LinearDenoiser(image)
     
     denoise_image = linear_denoiser.medianFilter(5)
@@ -227,8 +297,26 @@ if __name__ == "__main__":
 
     # Realizar operaciones morfológicas finales para limpiar la máscara
     cleaned_mask = background.morphological_operations_cleanse(mask_contours)
-    cv2.imwrite('./data/qsd2_w2/cleaned_mask.jpg', cleaned_mask)
-    final_image = background.apply_mask(cleaned_mask)
+            
+    # Encontrar todos los contornos en la máscara
+    contours, _ = cv2.findContours(cleaned_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # Filtrar los contornos por un área mínima
+    large_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 10000]
+    
+    # Ordenar los contornos por área en orden descendente
+    large_contours = sorted(large_contours, key=cv2.contourArea, reverse=True)
+    
+    # Seleccionar solo los contornos más grandes (ej: 2 más grandes)
+    largest_contours = large_contours[:2]
+    
+    # Crear una nueva máscara con solo los contornos seleccionados
+    filtered_mask = np.zeros(cleaned_mask.shape, dtype=np.uint8)
+    for cnt in largest_contours:
+        cv2.drawContours(filtered_mask, [cnt], -1, 255, thickness=cv2.FILLED)
+
+    cv2.imwrite('./data/qsd2_w2/cleaned_mask.jpg', filtered_mask)
+    final_image = background.apply_mask(filtered_mask)
 
     # Guardar la imagen final
     cv2.imwrite('./data/qsd2_w2/final_image.jpg', final_image)
