@@ -3,6 +3,10 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.fftpack import dct
+from skimage.transform import rotate
+from skimage.feature import local_binary_pattern
+from skimage import data
+from skimage.color import label2rgb
 
 class ImageDescriptor:
     COLOR_RANGES = {
@@ -387,51 +391,9 @@ class TextureDescriptor:
         #print ('v:',v,', h:',h,', i:',i)
         return output
 
-
-    def extract_patterns(self,coefs):
-        h=coefs[0,:]
-        v=coefs[:,0]
-        d=[coefs[1,1],coefs[2,2],coefs[3,3]]
-
-        ac_vector=[np.sum(h),np.sum(v),np.sum(d)]
-
-        return ac_vector,coefs[0,0]
-    
-
-    def dc_direction(self,dc_pattern):
-        neigbour_blocks_x=np.lib.stride_tricks.sliding_window_view(dc_pattern[:,:,0],(3,3))
-        neigbour_blocks_x=np.reshape(neigbour_blocks_x,(-1,3,3))
-
-        neigbour_blocks_y=np.lib.stride_tricks.sliding_window_view(dc_pattern[:,:,1],(3,3))
-        neigbour_blocks_y=np.reshape(neigbour_blocks_y,(-1,3,3))
-
-        neigbour_blocks_z=np.lib.stride_tricks.sliding_window_view(dc_pattern[:,:,2],(3,3))
-        neigbour_blocks_z=np.reshape(neigbour_blocks_z,(-1,3,3))
-
-        dc_direcvec=[]
-        for nbr in neigbour_blocks_x:
-            direction=np.arange(1,10)
-            c=nbr[1,1]
-            difference=[nbr[0,0]-c,nbr[0,1]-c,nbr[0,2]-c,nbr[1,0]-c,nbr[1,2]-c,nbr[2,0]-c,nbr[2,1]-c,nbr[2,2]-c,int(np.round(np.mean(nbr.flatten())-c))]
-            direction=np.argsort(-np.array(difference))+1
-            dc_direcvec.append(list(direction))
-        for nbr in neigbour_blocks_y:
-            direction=np.arange(1,10)
-            c=nbr[1,1]
-            difference=[nbr[0,0]-c,nbr[0,1]-c,nbr[0,2]-c,nbr[1,0]-c,nbr[1,2]-c,nbr[2,0]-c,nbr[2,1]-c,nbr[2,2]-c,int(np.round(np.mean(nbr.flatten())-c))]
-            direction=np.argsort(-np.array(difference))+1
-            dc_direcvec.append(list(direction))
-
-        for nbr in neigbour_blocks_z:
-            direction=np.arange(1,10)
-            c=nbr[1,1]
-            difference=[nbr[0,0]-c,nbr[0,1]-c,nbr[0,2]-c,nbr[1,0]-c,nbr[1,2]-c,nbr[2,0]-c,nbr[2,1]-c,nbr[2,2]-c,int(np.round(np.mean(nbr.flatten())-c))]
-            direction=np.argsort(-np.array(difference))+1
-            dc_direcvec.append(list(direction))
-
-        return np.array(dc_direcvec).flatten()
-
     def describe(self, image, structure, quantization):
+        image = cv2.medianBlur(image, 3)
+
         if self.color_space == 'HLS':
             image = cv2.cvtColor(image, cv2.COLOR_BGR2HLS_FULL)
         elif self.color_space == 'HSV':
@@ -445,52 +407,39 @@ class TextureDescriptor:
         elif self.color_space == 'YCrCb':
             image = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)   
         elif self.color_space=='gray':
+
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) 
-        elif self.color_space=='combine':
-            image1 = cv2.cvtColor(image, cv2.COLOR_BGR2HSV_FULL)
-            image2 = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-            image3 = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        # elif self.color_space=='combine':
+        #     image1 = cv2.cvtColor(image, cv2.COLOR_BGR2HSV_FULL)
+        #     image2 = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        #     image3 = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         if structure=='DCT':
-            # img=cv2.resize(image, (400,400), interpolation= cv2.INTER_LINEAR)
-
-            m,n,_=image.shape
-            x=8
-            y=8
-
-            x0=m+(x-(m%x))
-            y0=n+(y-(n%y))
-            img=np.uint8(np.zeros((x0,y0,3)))
-            img[0:m,0:n,:]=image
             
-            nblock_x=int(m/x)
-            nblock_y=int(n/y)
-
-            divided_img=self.block(img,[nblock_x,nblock_y])
-            #add luminace normalization?
-
-            # descriptor=[]
-            ac_pattern=[]
-            dc_pattern=[]
-
+            #image should be grayscale
+            img=cv2.resize(image,(512,512))
+            m,n=np.shape(img)
+            coefs=[]
+            divided_img=self.block(img,[m/8,n/8])
             for subimg in divided_img:
-                coefs=self.dctn(subimg)
-                if quantization==True:
-                    coefs=self.quantize(coefs)
-                    # print(coefs)
-                # coefs_zz=self.zigzag(coefs)
-                
-                ac_vector,dc=self.extract_patterns(coefs)
-                ac_pattern.append(ac_vector)
-                dc_pattern.append(dc)
-            dc_pattern=np.reshape(dc_pattern,(nblock_x,nblock_y,3))
-            dc_direcvec=self.dc_direction(dc_pattern)
-            ac_histogram_x=cv2.calcHist([np.float32(ac_pattern)],[0],None,[70],[0,70])
-            ac_histogram_y=cv2.calcHist([np.float32(ac_pattern)],[0],None,[70],[0,70])
-            ac_histogram_z=cv2.calcHist([np.float32(ac_pattern)],[0],None,[70],[0,70])
-            dc_histogram=cv2.calcHist([np.float32(dc_direcvec)],[0],None,[9],[1,9])
-            return np.concatenate((ac_histogram_x,ac_histogram_y,ac_histogram_z,dc_histogram))
+                dct_block=self.dctn(subimg)
+                dct_coefs=self.zigzag(dct_block*255.0)
+                coefs.append(dct_coefs[:10])
+            return coefs
 
+        elif structure=="LBP":
+            n_points=8
+            radius=2
+            img=cv2.resize(image,(512,512))
+            m,n=np.shape(img)
+            histogram=[]
+            divided_img=self.block(img,[m/8,n/8])
+            for subimg in divided_img:
+                lbp = np.float32(local_binary_pattern(subimg, n_points, radius, 'uniform'))
+                hist= cv2.calcHist([lbp.flatten()],[0],None,[10],[0,10])/(m*n)
+                histogram.append(hist)
+        
+            return histogram
 
 
                 

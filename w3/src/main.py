@@ -76,6 +76,11 @@ def process_images(folder_path, structure, descriptor,quantization):
                 'descriptor': hist
             }
     return histograms_dict
+def kullback_leibler_divergence(p, q):
+    p = np.asarray(p)
+    q = np.asarray(q)
+    filt = np.logical_and(p != 0, q != 0)
+    return np.sum(p[filt] * np.log2(p[filt] / q[filt]))
 
 def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, quantization, structure, level, mask, folder=qsd_folder):
     """Calculate mAP@K for a given similarity measure and descriptor."""
@@ -86,7 +91,7 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
         image_path = os.path.join(folder, img)
 
         # Check if the file is an image
-        if not img.endswith(".jpg") and not img.endswith(".png"):
+        if not img.endswith(".jpg") :
             continue
         
         try:
@@ -95,7 +100,7 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
             print(f"Error processing image {img}: {e}")
             continue
         
-        if structure == 'DCT':
+        if structure == 'DCT' or structure == 'LBP' or structure == 'DCT_simple':
             if similarity_measure == "intersection":
                 similarities = {key: measures.histogramIntersection(np.array(histogram,dtype=np.float32).flatten(), 
                                                                     np.array(value['descriptor'],dtype=np.float32).flatten()) for key, value in histograms.items()}
@@ -112,38 +117,25 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
                 similarities = {key: measures.histogramCorrel(np.array(histogram,dtype=np.float32).flatten(), 
                                                                     np.array(value['descriptor'],dtype=np.float32).flatten()) for key, value in histograms.items()}
                 reverse = False
+            elif similarity_measure == "kullback":
+                similarities = {key: kullback_leibler_divergence(np.array(histogram,dtype=np.float32).flatten(), 
+                                                                    np.array(value['descriptor'],dtype=np.float32).flatten()) for key, value in histograms.items()}
+                reverse = False
+            elif similarity_measure=="euclidean":
+                similarities = {key: sum(pow(abs(np.array(np.array(value['descriptor'],dtype=np.float32).flatten()-np.array(histogram,dtype=np.float32).flatten(),dtype=np.float32).flatten()),2)) for key, value in histograms.items()}
+                reverse = False
+            elif similarity_measure=="hellinger":
+                similarities = {key: np.sum(np.sqrt(np.multiply(np.array(value['descriptor'],dtype=np.float32).flatten(),np.array(histogram,dtype=np.float32).flatten()))) for key, value in histograms.items()}
+                
+                reverse = True
+
+
 
             top_k = [k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=reverse)][:K]
             top_k_numbers = [int(filename[5:-4]) for filename in top_k]
             top_K.append(top_k_numbers)
 
-        elif structure == 'block' or structure == 'heriarchical':
-            if similarity_measure == "intersection":
-                similarities = {key: measures.histogramIntersection(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
-                                                                     np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
-                                for key, value in histograms.items()}
-                reverse = True
-            elif similarity_measure == "bhattacharyya":
-                similarities = {key: measures.bhattacharyyaDistance(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
-                                                                     np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
-                                for key, value in histograms.items()}
-                reverse = False
-            elif similarity_measure == "Chisqr":
-                similarities = {key: measures.histogramChisqr(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
-                                                                     np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
-                                for key, value in histograms.items()}
-                reverse = False
-
-            elif similarity_measure == "Correl":
-                similarities = {key: measures.histogramCorrel(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
-                                                                np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
-                                for key, value in histograms.items()}
-                reverse = True
-
-            top_k = [k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=reverse)][:K]
-            top_k_numbers = [int(filename[5:-4]) for filename in top_k]
-            top_K.append(top_k_numbers)
-
+    print(top_K)
     return top_K  # Return top K results (list of lists)
 
 
@@ -152,7 +144,7 @@ def process_similarity_measures(histograms, descriptor, labels, quantization, st
     # similarity_measures = ["intersection", "canberra"]
 
     # for measure in similarity_measures:
-    if structure == 'DCT':
+    if structure == 'DCT' or structure =="LBP" or structure == 'DCT_simple':
         top_K = calculate_similarity(histograms, descriptor, labels, k_val, measure, quantization, structure, None, mask=mask, folder=images_folder)
         map_k = mapk(labels, top_K, k_val)
         print(f"mAP@{k_val} for quantization {quantization}, {structure}, {descriptor.color_space} and {measure}: {map_k}")
