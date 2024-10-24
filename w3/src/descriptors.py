@@ -392,7 +392,7 @@ class TextureDescriptor:
         return output
 
     def describe(self, image, structure, quantization):
-        image = cv2.medianBlur(image, 3)
+        # image = cv2.medianBlur(image, 3)
 
         if self.color_space == 'HLS':
             image = cv2.cvtColor(image, cv2.COLOR_BGR2HLS_FULL)
