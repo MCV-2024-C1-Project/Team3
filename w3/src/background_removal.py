@@ -30,7 +30,7 @@ class CalculateBackground():
         edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)  
 
         # Guardar la imagen de los bordes detectados
-        cv2.imwrite('./data/qsd2_w2/edges.jpg', edges)
+        cv2.imwrite('./data/background/edges.jpg', edges)
 
         # Encontrar los contornos
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -46,8 +46,8 @@ class CalculateBackground():
             cv2.drawContours(contour_image, [cnt], -1, (0, 255, 0), 5)  # Dibujar en la imagen de contorno
 
         # Guardar la imagen con los contornos detectados
-        cv2.imwrite('./data/qsd2_w2/contour_image.jpg', contour_image)
-        cv2.imwrite('./data/qsd2_w2/mask_contours.jpg', mask_contours)
+        cv2.imwrite('./data/background/contour_image.jpg', contour_image)
+        cv2.imwrite('./data/background/mask_contours.jpg', mask_contours)
 
         return mask_contours
     
@@ -74,7 +74,7 @@ class CalculateBackground():
         edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)  
 
         # Guardar la imagen de los bordes detectados
-        cv2.imwrite('./data/qsd2_w2/edges.jpg', edges)
+        cv2.imwrite('./data/background/edges.jpg', edges)
 
         # Encontrar los contornos
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -90,8 +90,8 @@ class CalculateBackground():
             cv2.drawContours(contour_image, [cnt], -1, (0, 255, 0), 5)  # Dibujar en la imagen de contorno
 
         # Guardar la imagen con los contornos detectados
-        cv2.imwrite('./data/qsd2_w2/contour_image.jpg', contour_image)
-        cv2.imwrite('./data/qsd2_w2/mask_contours.jpg', mask_contours)
+        cv2.imwrite('./data/background/contour_image.jpg', contour_image)
+        cv2.imwrite('./data/background/mask_contours.jpg', mask_contours)
 
         return mask_contours
     
@@ -107,7 +107,7 @@ class CalculateBackground():
         edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)  
 
         # Guardar la imagen de los bordes detectados
-        cv2.imwrite('./data/qsd2_w2/edges.jpg', edges)
+        cv2.imwrite('./data/background/edges.jpg', edges)
 
         # Encontrar los contornos
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -122,8 +122,8 @@ class CalculateBackground():
             cv2.drawContours(mask_contours, [cnt], -1, 255, -1)  # Dibujar el contorno cerrado en la máscara
             cv2.drawContours(contour_image, [cnt], -1, (0, 255, 0), 5)  # Dibujar en la imagen de contorno
 
-        cv2.imwrite('./data/qsd2_w2/contour_image.jpg', contour_image)
-        cv2.imwrite('./data/qsd2_w2/mask_contours.jpg', mask_contours)
+        cv2.imwrite('./data/background/contour_image.jpg', contour_image)
+        cv2.imwrite('./data/background/mask_contours.jpg', mask_contours)
 
         return mask_contours
     
@@ -160,7 +160,7 @@ class CalculateBackground():
         freq_mask = cv2.morphologyEx(freq_mask, cv2.MORPH_CLOSE, kernel, iterations=2)
 
         # Save the mask for visualization
-        cv2.imwrite('./data/qsd2_w2/frequency_mask.jpg', freq_mask)
+        cv2.imwrite('./data/background/frequency_mask.jpg', freq_mask)
         
         # Encontrar los contornos en la máscara de frecuencias
         contours, _ = cv2.findContours(freq_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -173,7 +173,7 @@ class CalculateBackground():
             cv2.drawContours(mask_contours_frequencies, [cnt], -1, 255, -1)  # Rellenar contornos
 
         # Guardar la máscara de contornos de frecuencias
-        cv2.imwrite('./data/qsd2_w2/frequency_contours_mask.jpg', mask_contours_frequencies)
+        cv2.imwrite('./data/background/frequency_contours_mask.jpg', mask_contours_frequencies)
 
         return mask_contours_frequencies
 
@@ -205,7 +205,7 @@ class CalculateBackground():
         edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)  # Aplicar un cierre para unir bordes
 
         # Guardar la imagen de los bordes detectados
-        cv2.imwrite('./data/qsd2_w2/edges.jpg', edges)
+        cv2.imwrite('./data/background/edges.jpg', edges)
 
         # Encontrar los contornos
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -230,8 +230,8 @@ class CalculateBackground():
             #     cv2.drawContours(contour_image, [approx], -1, (0, 255, 0), 5)  # Dibujar en la imagen de contorno
 
         # Guardar la imagen con los contornos detectados
-        cv2.imwrite('./data/qsd2_w2/contour_image.jpg', contour_image)
-        cv2.imwrite('./data/qsd2_w2/mask_contours.jpg', mask_contours)
+        cv2.imwrite('./data/background/contour_image.jpg', contour_image)
+        cv2.imwrite('./data/background/mask_contours.jpg', mask_contours)
 
         return mask_contours
 
@@ -262,7 +262,7 @@ class CalculateBackground():
         # combined_mask = np.uint8(combined_mask)
         
         # # Guardar la máscara combinada ponderada
-        # cv2.imwrite('./data/qsd2_w2/weighted_combined_mask.jpg', combined_mask)
+        # cv2.imwrite('./data/background/weighted_combined_mask.jpg', combined_mask)
 
         return edges_mask
 
@@ -286,7 +286,7 @@ if __name__ == "__main__":
     linear_denoiser = LinearDenoiser(image)
     
     denoise_image = linear_denoiser.medianFilter(5)
-    cv2.imwrite('./data/qsd2_w2/denoise_image.jpg', denoise_image)
+    cv2.imwrite('./data/background/denoise_image.jpg', denoise_image)
     background = CalculateBackground(denoise_image)
 
     # Detectar contornos
@@ -315,8 +315,8 @@ if __name__ == "__main__":
     for cnt in largest_contours:
         cv2.drawContours(filtered_mask, [cnt], -1, 255, thickness=cv2.FILLED)
 
-    cv2.imwrite('./data/qsd2_w2/cleaned_mask.jpg', filtered_mask)
+    cv2.imwrite('./data/background/cleaned_mask.jpg', filtered_mask)
     final_image = background.apply_mask(filtered_mask)
 
     # Guardar la imagen final
-    cv2.imwrite('./data/qsd2_w2/final_image.jpg', final_image)
+    cv2.imwrite('./data/background/final_image.jpg', final_image)

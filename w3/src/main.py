@@ -78,6 +78,28 @@ def process_images(folder_path, dimension, structure, descriptor):
             }
     return histograms_dict
 
+
+
+def detect_pictures(image, mask):
+    """Detect possible cuadros (regions of interest) in the image using contours."""
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    cuadros = []
+    for contour in contours: # Filter out small areas (noise)
+        x, y, w, h = cv2.boundingRect(contour)
+        cuadro = image[y:y+h, x:x+w]
+        
+        # Remove black borders around the cuadro
+        linear_denoiser = LinearDenoiser(cuadro)
+        pict = linear_denoiser.medianFilter(5)
+        cuadros.append(pict)  # Append the cleaned cuadro
+        
+        # # Mostrar cada cuadro detectado
+        # cv2.imshow('Cuadro Detectado', pict)
+        # cv2.waitKey(0)  # Pausa hasta que presiones una tecla
+    
+    return cuadros
+
 def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, dimension, structure, level, mask, folder=qsd_folder):
     """Calculate mAP@K for a given similarity measure and descriptor."""
     measures = ComputeSimilarity()
@@ -85,61 +107,75 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
 
     for img in sorted(os.listdir(folder)):
         image_path = os.path.join(folder, img)
+        mask_path = os.path.join(MASK_FOLDER, img)
 
         # Check if the file is an image
         if not img.endswith(".jpg") and not img.endswith(".png"):
             continue
         
         try:
-            histogram = descriptor.describe(cv2.imread(image_path), dimension, structure)
+            image = cv2.imread(image_path)
+            mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+            pictures = detect_pictures(image, mask)  # Detect pictures (regions of interest)
         except Exception as e:
             print(f"Error processing image {img}: {e}")
             continue
         
-        if structure == 'simple':
-            if similarity_measure == "intersection":
-                similarities = {key: measures.histogramIntersection(histogram, value['histograms']) for key, value in histograms.items()}
-                reverse = True
-            elif similarity_measure == "bhattacharyya":
-                similarities = {key: measures.bhattacharyyaDistance(histogram, value['histograms']) for key, value in histograms.items()}
-                reverse = True
-            elif similarity_measure == "Chisqr":
-                similarities = {key: measures.histogramChisqr(histogram, value['histograms']) for key, value in histograms.items()}
-                reverse = True
-            elif similarity_measure == "Correl":
-                similarities = {key: measures.histogramCorrel(histogram, value['histograms']) for key, value in histograms.items()}
-                reverse = False
+        img_top_K = []
+        
+        for pict in pictures:
+            try:
+                histogram = descriptor.describe(pict, dimension, structure)
+            except Exception as e:
+                print(f"Error processing image {img}: {e}")
+                continue
+            
+            if structure == 'simple':
+                if similarity_measure == "intersection":
+                    similarities = {key: measures.histogramIntersection(histogram, value['histograms']) for key, value in histograms.items()}
+                    reverse = True
+                elif similarity_measure == "bhattacharyya":
+                    similarities = {key: measures.bhattacharyyaDistance(histogram, value['histograms']) for key, value in histograms.items()}
+                    reverse = True
+                elif similarity_measure == "Chisqr":
+                    similarities = {key: measures.histogramChisqr(histogram, value['histograms']) for key, value in histograms.items()}
+                    reverse = True
+                elif similarity_measure == "Correl":
+                    similarities = {key: measures.histogramCorrel(histogram, value['histograms']) for key, value in histograms.items()}
+                    reverse = False
 
-            top_k = [k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=reverse)][:K]
-            top_k_numbers = [int(filename[5:-4]) for filename in top_k]
-            top_K.append(top_k_numbers)
+                top_k = [k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=reverse)][:K]
+                top_k_numbers = [int(filename[5:-4]) for filename in top_k]
+                img_top_K.append(top_k_numbers)
 
-        elif structure == 'block' or structure == 'heriarchical':
-            if similarity_measure == "intersection":
-                similarities = {key: measures.histogramIntersection(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
-                                                                     np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
-                                for key, value in histograms.items()}
-                reverse = True
-            elif similarity_measure == "bhattacharyya":
-                similarities = {key: measures.bhattacharyyaDistance(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
-                                                                     np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
-                                for key, value in histograms.items()}
-                reverse = False
-            elif similarity_measure == "Chisqr":
-                similarities = {key: measures.histogramChisqr(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
-                                                                     np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
-                                for key, value in histograms.items()}
-                reverse = False
+            elif structure == 'block' or structure == 'heriarchical':
+                if similarity_measure == "intersection":
+                    similarities = {key: measures.histogramIntersection(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
+                                                                        np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
+                                    for key, value in histograms.items()}
+                    reverse = True
+                elif similarity_measure == "bhattacharyya":
+                    similarities = {key: measures.bhattacharyyaDistance(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
+                                                                        np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
+                                    for key, value in histograms.items()}
+                    reverse = False
+                elif similarity_measure == "Chisqr":
+                    similarities = {key: measures.histogramChisqr(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
+                                                                        np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
+                                    for key, value in histograms.items()}
+                    reverse = False
 
-            elif similarity_measure == "Correl":
-                similarities = {key: measures.histogramCorrel(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
-                                                                np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
-                                for key, value in histograms.items()}
-                reverse = True
+                elif similarity_measure == "Correl":
+                    similarities = {key: measures.histogramCorrel(np.array(histogram[level]['histogram'], dtype=np.float32).flatten(), 
+                                                                    np.array(value['histograms'][level]['histogram'], dtype=np.float32).flatten()) 
+                                    for key, value in histograms.items()}
+                    reverse = True
 
-            top_k = [k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=reverse)][:K]
-            top_k_numbers = [int(filename[5:-4]) for filename in top_k]
-            top_K.append(top_k_numbers)
+                top_k = [k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=reverse)][:K]
+                top_k_numbers = [int(filename[5:-4]) for filename in top_k]
+                img_top_K.append(top_k_numbers)
+                
+        top_K.append(img_top_K)
 
     return top_K  # Return top K results (list of lists)
 
@@ -225,7 +261,7 @@ def background_images(qsd_folder):
                 if image is None:
                     print(f"Error loading image {image_name}")
                     continue
-                print(f"{image_name}")
+                # print(f"{image_name}")
                 linear_denoiser = LinearDenoiser(image)
     
                 denoise_image = linear_denoiser.medianFilter(5)
@@ -272,12 +308,12 @@ def background_images(qsd_folder):
                 # image_bgra = cv2.cvtColor(image, cv2.COLOR_BGR2BGRA)
                 # image_bgra[final_image == 0, 3] = 0
                 # image_bgra[final_image != 0, 3] = 255
-                masked_image = cv2.bitwise_and(image, image, mask=final_image)
-                x, y, w, h = cv2.boundingRect(final_image)
-                cropped_image = masked_image[y:y+h, x:x+w]
+                # masked_image = cv2.bitwise_and(image, image, mask=final_image)
+                # x, y, w, h = cv2.boundingRect(final_image)
+                # cropped_image = masked_image[y:y+h, x:x+w]
                 output_path = os.path.join(NO_BG_FOLDER, image_name.split('.')[0] + ".png")
                 
-                cv2.imwrite(output_path, cropped_image)
+                cv2.imwrite(output_path, image)
 
         qsd_folder = NO_BG_FOLDER
         # Safely compute mean metrics
@@ -318,7 +354,7 @@ if __name__ == '__main__':
     # After all masks have been applied and evaluated, process similarity with the background-removed images
     print("Processing similarity using method:", colorspace, "dimension:", dimension, "structure:", structure)
     print(qsd_folder)
-    process_similarity_measures(histograms, ImageDescriptor(colorspace), labels, dimension, structure, k_val=1, mask=cv2.bitwise_not(mask), measure=measure, method_folder=METHOD1_FOLDER, images_folder=qsd_folder)
+    process_similarity_measures(histograms, ImageDescriptor(colorspace), labels, dimension, structure, k_val=10, mask=cv2.bitwise_not(mask), measure=measure, method_folder=METHOD1_FOLDER, images_folder=qsd_folder)
                 
 
 
