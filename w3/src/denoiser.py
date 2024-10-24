@@ -361,8 +361,8 @@ class NonLinearDenoiser():
         """Applies soft thresholding to wavelet coefficients"""
         return np.sign(data) * np.maximum(np.abs(data) - threshold, 0)
     
-    def waveletShrinkage3D(self, wavelet = 'bior1.3', level = 3, threshold_factor = 0.75):
-        img = self.img.copy()
+    def waveletShrinkage3D(self, img, wavelet = 'bior1.3', level = 3, threshold_factor = 0.75):
+
 
         if len(img.shape) == 3:
             b, g, r = cv2.split(img)
@@ -419,9 +419,54 @@ class NoiseMetric():
             ssim_value = ssim(orig_img, denoised_img, win_size=3)
         return ssim_value
     
-if __name__ == "__main__":
+def denoiseOne(image_path, name):
+    metrics = NoiseMetric()
+
+    img = cv2.imread(image_path+name)
+
+    denoiser = NonLinearDenoiser(img)
+
+    wavelet_denoised = denoiser.waveletShrinkage3D(img, wavelet='bior1.3', level=3, threshold_factor=0.75)
+    wav_median_denoised = denoiser.waveletShrinkage3D(cv2.medianBlur(img, 5), wavelet='bior1.3', level=3, threshold_factor=0.75)
+
+    wavelet_denoised = cv2.resize(wavelet_denoised, (img.shape[1], img.shape[0]))
+    wav_median_denoised = cv2.resize(wav_median_denoised, (img.shape[1], img.shape[0]))
+
+    wavelet_psnr = metrics.psnr(img, wavelet_denoised)
+    wav_median_psnr = metrics.psnr(img, wav_median_denoised)
+
+    if wavelet_psnr > wav_median_psnr:
+        return wavelet_denoised
+    else:
+        return wav_median_denoised
+    
+def denoiseAll(image_path):
+
+    metrics = NoiseMetric()
+
+    for name in tqdm(os.listdir(image_path)):
+        if name.endswith('.jpg'):
+            img = cv2.imread(image_path + name)
+            denoiser = NonLinearDenoiser(img)
+            
+            wavelet_denoised = denoiser.waveletShrinkage3D(img, wavelet='bior1.3', level=3, threshold_factor=0.75)
+            wav_median_denoised = denoiser.waveletShrinkage3D(cv2.medianBlur(img, 5), wavelet='bior1.3', level=3, threshold_factor=0.75)
+
+            wavelet_denoised = cv2.resize(wavelet_denoised, (img.shape[1], img.shape[0]))
+            wav_median_denoised = cv2.resize(wav_median_denoised, (img.shape[1], img.shape[0]))
+
+            wavelet_psnr = metrics.psnr(img, wavelet_denoised)
+            wav_median_psnr = metrics.psnr(img, wav_median_denoised)
+
+            if wavelet_psnr > wav_median_psnr:
+                cv2.imwrite('./data/final_images/'+name, wavelet_denoised)
+
+            else:
+                cv2.imwrite('./data/final_images/'+name, wav_median_denoised)
 
     
+def test():
+
     metrics = NoiseMetric()
 
     linear_psnr_box = []
@@ -440,6 +485,9 @@ if __name__ == "__main__":
     non_linear_psnr_bmd3 = []
     non_linear_psnr_bm3d_hand = []
     non_linear_psnr_wavelet = []
+    non_linear_bilateral_median_psnr = []
+    wav_bilateral_psnr = []
+    wav_median_psnr = []
 
     info_images = [0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0]
     info_dif = []
@@ -468,7 +516,13 @@ if __name__ == "__main__":
             wavelet_bio_denoised = linear_denoiser.waveletTransformFilter('bior1.3')
             nlm_filter_denoised = non_linear_denoiser.non_local_means_denoising()
             bm3d_filter_denoised = non_linear_denoiser.bm3d_denoising()
-            wav_filter_denoised = non_linear_denoiser.waveletShrinkage3D()
+            wav_filter_denoised = non_linear_denoiser.waveletShrinkage3D(img)
+            bilat_median_denoised = cv2.medianBlur(cv2.bilateralFilter(img, 9, 75, 75), 5)
+            wav_bilateral_denoised = non_linear_denoiser.waveletShrinkage3D(cv2.bilateralFilter(img, 9, 75, 75), wavelet='bior1.3', level=3, threshold_factor=0.75)
+            #wav_bilateral_denoised = cv2.bilateralFilter(non_linear_denoiser.waveletShrinkage3D(wavelet='bior1.3', level=3, threshold_factor=3), 9, 75, 75)
+            wav_median_denoised = non_linear_denoiser.waveletShrinkage3D(cv2.medianBlur(img, 5), wavelet='bior1.3', level=3, threshold_factor=0.75)
+            #wav_median_denoised = cv2.medianBlur(non_linear_denoiser.waveletShrinkage3D(wavelet='bior1.3', level=3, threshold_factor=3), 11)
+
 
 
             box_filter_denoised = cv2.resize(box_filter_denoised, (img_orig.shape[1], img_orig.shape[0]))
@@ -485,6 +539,9 @@ if __name__ == "__main__":
             nlm_filter_denoised = cv2.bitwise_not(cv2.resize(nlm_filter_denoised, (img_orig.shape[1], img_orig.shape[0])))
             bm3d_filter_denoised = cv2.resize(bm3d_filter_denoised, (img_orig.shape[1], img_orig.shape[0]))
             wav_filter_denoised = cv2.resize(wav_filter_denoised, (img_orig.shape[1], img_orig.shape[0]))
+            bilat_median_denoised = cv2.resize(bilat_median_denoised, (img_orig.shape[1], img_orig.shape[0]))
+            wav_bilateral_denoised = cv2.resize(wav_bilateral_denoised, (img_orig.shape[1], img_orig.shape[0]))
+            wav_median_denoised = cv2.resize(wav_median_denoised, (img_orig.shape[1], img_orig.shape[0]))
 
             cv2.imwrite('./data/denoised_images/box_filter_'+image_path, box_filter_denoised)
             cv2.imwrite('./data/denoised_images/median_filter_'+image_path, median_filter_denoised)
@@ -500,6 +557,9 @@ if __name__ == "__main__":
             cv2.imwrite('./data/denoised_images/nlm_filter_'+image_path, nlm_filter_denoised)
             cv2.imwrite('./data/denoised_images/bm3d_filter_'+image_path, bm3d_filter_denoised)
             cv2.imwrite('./data/denoised_images/wav_filter_'+image_path, wav_filter_denoised)
+            cv2.imwrite('./data/denoised_images/bilat_median_filter_'+image_path, bilat_median_denoised)
+            cv2.imwrite('./data/denoised_images/wav_bilateral_filter_'+image_path, wav_bilateral_denoised)
+            cv2.imwrite('./data/denoised_images/wav_median_filter_'+image_path, wav_median_denoised)
 
 
 
@@ -518,6 +578,9 @@ if __name__ == "__main__":
             non_linear_psnr_nlm.append(metrics.psnr(img_orig, nlm_filter_denoised))
             non_linear_psnr_bmd3.append(metrics.psnr(img_orig, bm3d_filter_denoised))
             non_linear_psnr_wavelet.append(metrics.psnr(img_orig, wav_filter_denoised))
+            non_linear_bilateral_median_psnr.append(metrics.psnr(img_orig, bilat_median_denoised))
+            wav_bilateral_psnr.append(metrics.psnr(img_orig, wav_bilateral_denoised))
+            wav_median_psnr.append(metrics.psnr(img_orig, wav_median_denoised))
             info_dif.append({
                 'name': image_path,
                 'psnr': metrics.psnr(img_orig, img),
@@ -535,7 +598,10 @@ if __name__ == "__main__":
                     'wavelet_bio_filter': metrics.psnr(img_orig, wavelet_bio_denoised),
                     'nlm_filter': metrics.psnr(img_orig, nlm_filter_denoised),
                     'bm3d_filter': metrics.psnr(img_orig, bm3d_filter_denoised),
-                    'wav_filter': metrics.psnr(img_orig, wav_filter_denoised)
+                    'wav_filter': metrics.psnr(img_orig, wav_filter_denoised),
+                    'non_linear_bilateral_median_psnr': metrics.psnr(img_orig, bilat_median_denoised),
+                    'wav_bilateral_psnr': metrics.psnr(img_orig, wav_bilateral_denoised),
+                    'wav_median_psnr': metrics.psnr(img_orig, wav_median_denoised)
                 }
                 
                     
@@ -571,9 +637,13 @@ if __name__ == "__main__":
     print("NLM Filter --- PSNR: "+str(np.mean(non_linear_psnr_nlm))+"\n")
     print("BM3D Filter --- PSNR: "+str(np.mean(non_linear_psnr_bmd3))+"\n")
     print("Wavelet Shrinkage --- PSNR: "+str(np.mean(non_linear_psnr_wavelet))+"\n")
+    print("Bilateral Median --- PSNR: "+str(np.mean(non_linear_bilateral_median_psnr))+"\n")
+    print("Wavelet Bilateral --- PSNR: "+str(np.mean(wav_bilateral_psnr))+"\n")
+    print("Wavelet Median --- PSNR: "+str(np.mean(wav_median_psnr))+"\n")
 
     print("----------------------------------------------------------------------------------------------------------------------\n")
     print("INFO IMAGES: \n")
     print(info_dif)
+
 
 
