@@ -7,63 +7,6 @@ from skimage.metrics import structural_similarity as ssim
 from tqdm import tqdm
 import bm3d
 
-class NoiseEstimation():
-    def __init__(self, img):
-        self.img = img
-
-    def noise_estimation_std(self, threshold):
-        img = self.img.copy()
-
-        deviation = np.std(img)
-
-        if deviation > threshold:
-            return True
-        else:
-            return False
-
-    def noise_estimation_fft(self, threshold):
-        img = self.img.copy()
-
-        f = np.fft.fft2(img)
-        fshift = np.fft.fftshift(f)
-        magnitude_spectrum  = np.log(np.abs(fshift) + 1)
-        high_freq_energy = np.sum(magnitude_spectrum[rows//2:, cols//2:])
-        
-        if high_freq_energy > threshold:
-            return True
-        else:
-            return False
-
-    def noise_estimation_tv(self, threshold):
-        img = self.img.copy()
-
-        grad_x = np.roll(img, -1, axis=1) - img
-        grad_y = np.roll(img, -1, axis=0) - img
-        tv_norm = np.sum(np.sqrt(grad_x**2 + grad_y**2))
-
-        if tv_norm > threshold:
-            return True
-        else:
-            return False
-
-    def noise_estimation_psnr(self):
-        pass
-
-    def noise_estimation_snr(self, orig_img, threshold):
-        img = self.img.copy()
-
-        signal_power = np.mean(orig_img)
-        noise_power = np.mean((img - orig_img) ** 2)
-        snr = 10 * np.log10(signal_power / noise_power)
-
-        if snr < threshold:
-            return True
-        else:
-            return False
-
-    def noise_estimation_wavelet(self):
-        pass
-
 class LinearDenoiser():
     def __init__(self, image):
         self.img = image
