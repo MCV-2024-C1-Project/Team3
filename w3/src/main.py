@@ -9,6 +9,7 @@ from descriptors import TextureDescriptor
 from similarity import ComputeSimilarity
 from evaluation.average_precision import mapk
 from background_removal import CalculateBackground
+from denoiser import denoiseAll
 
 
 # Argument parser setup
@@ -44,6 +45,7 @@ NO_BG_FOLDER = './data/qsd2_w2_no_bg'
 METHOD1_FOLDER = os.path.join(RESULTS_FOLDER, 'method1')  # Output folder for method1
 METHOD2_FOLDER = os.path.join(RESULTS_FOLDER, 'method2')  # Output folder for method2
 
+FINAL_IMAGES = './data/final_images/'
 
 def load_histograms(structure, descriptor, folder_path,quantization):
     """Load histograms from file if available, otherwise calculate them."""
@@ -284,7 +286,8 @@ if __name__ == '__main__':
     # Load histograms for HLS and HSV
     # histograms_hls = load_histograms(HLS_HIST_NPY, ImageDescriptor('HLS'), BBDD_FOLDER)
     # histograms_hsv = load_histograms(HSV_HIST_NPY, ImageDescriptor('HSV'), BBDD_FOLDER)
-    histograms = load_histograms(structure, TextureDescriptor(colorspace), BBDD_FOLDER,quantization)
+    denoiseAll(FINAL_IMAGES)
+    histograms = load_histograms(structure, TextureDescriptor(colorspace), FINAL_IMAGES, quantization)
     # Attempt to load the ground truth labels, if the file exists
     labels = None
     try:
@@ -294,13 +297,11 @@ if __name__ == '__main__':
     except FileNotFoundError:
         print(f"Warning: Ground truth file {GT_CORRESPS_FILE} not found. Continuing without labels.")
 
-
-    print(qsd_folder)
-    qsd_folder, mask = background_images(qsd_folder)
+    _, mask = background_images(FINAL_IMAGES)
     # After all masks have been applied and evaluated, process similarity with the background-removed images
     print("Processing similarity using method:", colorspace, "structure:", structure,"quantization:", quantization)
     print(qsd_folder)
-    process_similarity_measures(histograms, TextureDescriptor(colorspace), labels,quantization, structure, k_val=1, mask=cv2.bitwise_not(mask), measure=measure, method_folder=METHOD1_FOLDER, images_folder=qsd_folder)
+    process_similarity_measures(histograms, TextureDescriptor(colorspace), labels, quantization, structure, k_val=1, mask=cv2.bitwise_not(mask), measure=measure, method_folder=METHOD1_FOLDER, images_folder=FINAL_IMAGES)
                 
 
 
