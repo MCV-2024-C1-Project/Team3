@@ -135,9 +135,6 @@ class CalculateBackground():
         dft = cv2.dft(np.float32(gray), flags=cv2.DFT_COMPLEX_OUTPUT)
         dft_shift = np.fft.fftshift(dft)  # Shift zero frequency to center
 
-        # Get magnitude spectrum
-        # magnitude_spectrum = 20 * np.log(cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1]))
-
         # Create a mask with a high-pass filter (remove low frequencies, retain high frequencies)
         rows, cols = gray.shape
         crow, ccol = rows // 2, cols // 2  # Center point
@@ -200,8 +197,6 @@ class CalculateBackground():
 
         # Aplicar una dilatación para cerrar brechas entre bordes
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))  # Kernel de 5x5 para operaciones morfológicas
-        # edges = cv2.dilate(edges, kernel, iterations=2)  # Dilatar los bordes
-        # edges = cv2.erode(edges, kernel, iterations=2)  # Dilatar los bordes
         edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)  # Aplicar un cierre para unir bordes
 
         # Guardar la imagen de los bordes detectados
@@ -219,15 +214,6 @@ class CalculateBackground():
             possible_frames.append(cnt)
             cv2.drawContours(mask_contours, [cnt], -1, 255, -1)  # Dibujar el contorno cerrado en la máscara
             cv2.drawContours(contour_image, [cnt], -1, (0, 255, 0), 5)  # Dibujar en la imagen de contorno
-            # perimeter = cv2.arcLength(cnt, True)
-            # approx = cv2.approxPolyDP(cnt, 0.02 * perimeter, True)  # Ajustar para mayor precisión
-
-            # # Verificar si el contorno está cerrado
-            # is_closed = cv2.isContourConvex(approx)  # Verificar si el contorno es convexo
-            # if is_closed and len(approx) == 4:  # Detectar rectángulos cerrados
-            #     possible_frames.append(approx)
-            #     cv2.drawContours(mask_contours, [approx], -1, 255, -1)  # Dibujar el contorno cerrado en la máscara
-            #     cv2.drawContours(contour_image, [approx], -1, (0, 255, 0), 5)  # Dibujar en la imagen de contorno
 
         # Guardar la imagen con los contornos detectados
         cv2.imwrite('./data/background/contour_image.jpg', contour_image)
@@ -244,25 +230,6 @@ class CalculateBackground():
         
         edges_mask = self.detect_contours_with_gradients()
         
-
-        # # Detect background using Fourier Transform and find contours
-        # frequency_mask = self.fourier_transform_background_detection()
-
-        # # Convert both masks to float32 for weighted sum
-        # edges_mask = np.float32(edges_mask)
-        # frequency_mask = np.float32(frequency_mask)
-
-        # # Apply a weighted sum to prioritize edges over frequencies
-        # weighted_combination = cv2.addWeighted(edges_mask, 0.7, frequency_mask, 0.3, 0)
-
-        # # Threshold the combined result to get a binary mask
-        # _, combined_mask = cv2.threshold(weighted_combination, 20, 255, cv2.THRESH_BINARY)
-
-        # # Convert back to uint8
-        # combined_mask = np.uint8(combined_mask)
-        
-        # # Guardar la máscara combinada ponderada
-        # cv2.imwrite('./data/background/weighted_combined_mask.jpg', combined_mask)
 
         return edges_mask
 
