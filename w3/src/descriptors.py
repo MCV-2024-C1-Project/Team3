@@ -3,10 +3,8 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.fftpack import dct
-from skimage.transform import rotate
 from skimage.feature import local_binary_pattern
-from skimage import data
-from skimage.color import label2rgb
+
 
 class ImageDescriptor:
     COLOR_RANGES = {
@@ -407,12 +405,7 @@ class TextureDescriptor:
         elif self.color_space == 'YCrCb':
             image = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)   
         elif self.color_space=='gray':
-
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) 
-        # elif self.color_space=='combine':
-        #     image1 = cv2.cvtColor(image, cv2.COLOR_BGR2HSV_FULL)
-        #     image2 = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-        #     image3 = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         if structure=='DCT':
             

@@ -135,7 +135,7 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
             top_k_numbers = [int(filename[5:-4]) for filename in top_k]
             top_K.append(top_k_numbers)
 
-    print(top_K)
+    # print(top_K)
     return top_K  # Return top K results (list of lists)
 
 
