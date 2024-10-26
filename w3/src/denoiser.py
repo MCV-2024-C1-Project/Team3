@@ -300,9 +300,7 @@ class NonLinearDenoiser():
         else:
             return bm3d.bm3d(img, sigma_psd=sigma_psd, stage_arg=stage_arg)
 
-    def soft_threshold(self, data, threshold):
-        """Applies soft thresholding to wavelet coefficients"""
-        return np.sign(data) * np.maximum(np.abs(data) - threshold, 0)
+
     
     def waveletShrinkage3D(self, img, wavelet = 'bior1.3', level = 3, threshold_factor = 0.75):
 
@@ -317,21 +315,30 @@ class NonLinearDenoiser():
             return self.waveletShrinkage(img, wavelet, level, threshold_factor)
         
     
-    def waveletShrinkage(self, img, wavelet = 'bior1.3', level = 3, threshold_factor = 3):
+    def adaptive_threshold(self, data, sigma, level, max_level, factor):
+        """
+        Applies adaptive thresholding based on the detail level.
+        The threshold decreases with increasing level of detail.
+        """
+        # Scale the threshold by detail level to provide adaptive thresholding
+        level_factor = factor * (2 ** ((max_level - level) / 2))
+        threshold = level_factor * sigma * np.sqrt(2 * np.log2(data.size))
+        return np.sign(data) * np.maximum(np.abs(data) - threshold, 0)
+
+    def waveletShrinkage(self, img, wavelet='bior1.3', level=3, threshold_factor=3):
         
         # Perform wavelet decomposition
         coeffs = pywt.wavedec2(img, wavelet, level)
-
+        
         # Estimate the noise standard deviation from the first level coefficients
         sigma_est = np.median(np.abs(coeffs[-1])) / 0.6745
 
-        # Calculate threshold (universal threshold)
-        threshold = threshold_factor * sigma_est * np.sqrt(2 * np.log2(img.size))
-
-        # Apply soft thresholding to the detail coefficients
+        # Apply adaptive thresholding to the detail coefficients
         thresholded_coeffs = [coeffs[0]]
-        for detail_level in coeffs[1:]:
-            thresholded_level = tuple(self.soft_threshold(data, threshold) for data in detail_level)
+        for i, detail_level in enumerate(coeffs[1:], 1):
+            thresholded_level = tuple(
+                self.adaptive_threshold(data, sigma_est, i, level, threshold_factor) for data in detail_level
+            )
             thresholded_coeffs.append(thresholded_level)
         
         # Reconstruct the image using the thresholded coefficients
@@ -587,6 +594,9 @@ def test():
     print("----------------------------------------------------------------------------------------------------------------------\n")
     print("INFO IMAGES: \n")
     print(info_dif)
+
+if __name__ == '__main__':
+    test()
 
 
 
