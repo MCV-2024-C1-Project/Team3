@@ -88,21 +88,47 @@ def kullback_leibler_divergence(p, q):
     filt = np.logical_and(p != 0, q != 0)
     return np.sum(p[filt] * np.log2(p[filt] / q[filt]))
 
+import random as rng
 
 def detect_pictures(image, mask):
     """Detect possible cuadros (regions of interest) in the image using contours."""
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
+    rng.seed(12345)
+
+
     cuadros = []
+    i=0
     for contour in contours: # Filter out small areas (noise)
-        x, y, w, h = cv2.boundingRect(contour)
-        cuadro = image[y:y+h, x:x+w]
+        # x, y, w, h = cv2.boundingRect(contour)
+        # cuadro = image[y:y+h, x:x+w]
+
+        epsilon = 0.1*cv2.arcLength(contour,True)
+        pp = cv2.approxPolyDP(contour,epsilon,True)  
+        p=np.array([[pp[0][0][0],pp[0][0][1]],[pp[1][0][0],pp[1][0][1]],[pp[2][0][0],pp[2][0][1]],[pp[3][0][0],pp[3][0][1]]])
+        # Sort the points by y-coordinate (top to bottom)
+        points = p[np.argsort(p[:, 1])]
         
-        # Remove black borders around the cuadro
-        linear_denoiser = LinearDenoiser(cuadro)
-        pict = linear_denoiser.medianFilter(5)
-        cuadros.append(pict)  # Append the cleaned cuadro
-    
+        # Separate the points into top and bottom halves
+        top_points = points[:2]
+        bottom_points = points[2:]
+        
+        # Sort the top points by x-coordinate (left to right) to get upper-left and upper-right
+        top_left, top_right = top_points[np.argsort(top_points[:, 0])]
+        
+        # Sort the bottom points by x-coordinate (left to right) to get lower-left and lower-right
+        bottom_left, bottom_right = bottom_points[np.argsort(bottom_points[:, 0])]
+        
+        # Arrange the points in the desired order
+        ordered_points = np.array([top_left, bottom_left, top_right, bottom_right])
+            
+        rows, cols= [512,512]
+        pts1=np.float32(np.array([[0,0],[0,rows],[cols,0],[cols,rows]]))
+        pts2=np.float32(ordered_points)
+        M = cv2.getPerspectiveTransform(pts2, pts1)
+        transform=np.array(M,dtype=np.float32)
+        cuadro = cv2.warpPerspective(image, transform, (cols, rows))
+        cuadros.append(cuadro)  # Append the cleaned cuadro
+
     return cuadros
 
 
@@ -125,6 +151,7 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
             if mask is not None:
                 mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
                 pictures = detect_pictures(image, mask)  # Detect pictures (regions of interest)
+
             else:
                 pictures = [image]
 
@@ -176,7 +203,7 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
                 img_top_K.append(top_k_numbers)
         
         top_K.append(img_top_K)
-
+    print(top_K)
     return top_K  # Return top K results (list of lists)
 
 
@@ -184,6 +211,7 @@ def process_similarity_measures(histograms, descriptor, labels, quantization, st
     """Process all combinations of similarity measures for a single descriptor."""
 
     if structure == 'DCT' or structure =="LBP" or structure == 'DCT_simple':
+        
         top_K = calculate_similarity(histograms, descriptor, labels, k_val, measure, quantization, structure, None, mask=mask, folder=images_folder)
         map_k = mapk(labels, top_K, k_val)
         print(f"mAP@{k_val} for quantization {quantization}, {structure}, {descriptor.color_space} and {measure}: {map_k}")
@@ -345,6 +373,5 @@ if __name__ == '__main__':
     _, mask = background_images(qsd_folder, DENOISED_IMAGES)
     # After all masks have been applied and evaluated, process similarity with the background-removed images
     print("Processing similarity using method:", colorspace, "structure:", structure)
-    print(qsd_folder)
     process_similarity_measures(histograms, TextureDescriptor(colorspace), labels, quantization, structure, k_val=1, mask=cv2.bitwise_not(mask), measure=measure, method_folder=METHOD1_FOLDER, images_folder=DENOISED_IMAGES)
                 
