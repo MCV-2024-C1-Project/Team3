@@ -7,6 +7,9 @@ from skimage.metrics import structural_similarity as ssim
 from tqdm import tqdm
 import bm3d
 
+DATA_FOLDER = './data'
+DENOISED_FOLDER = os.path.join(DATA_FOLDER, 'denoised_images')
+
 class LinearDenoiser():
     def __init__(self, image):
         self.img = image
@@ -390,7 +393,7 @@ def denoiseOne(image_path, name):
     else:
         return wav_median_denoised
     
-def denoiseAll(image_path):
+def denoiseAll(image_path, denoised_folder):
 
     metrics = NoiseMetric()
 
@@ -409,10 +412,10 @@ def denoiseAll(image_path):
             wav_median_psnr = metrics.psnr(img, wav_median_denoised)
 
             if wavelet_psnr > wav_median_psnr:
-                cv2.imwrite('./data/denoised_images/'+name, wavelet_denoised)
+                cv2.imwrite(os.path.join(denoised_folder, name), wavelet_denoised)
 
             else:
-                cv2.imwrite('./data/denoised_images/'+name, wav_median_denoised)
+                cv2.imwrite(os.path.join(denoised_folder, name), wav_median_denoised)
 
     
 def test():
