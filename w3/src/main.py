@@ -137,7 +137,6 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
             top_k_numbers = [int(filename.split('.')[0].split('_')[-1]) for filename in top_k]
             top_K.append(top_k_numbers)
 
-    # print(top_K)
     return top_K  # Return top K results (list of lists)
 
 
@@ -288,7 +287,7 @@ if __name__ == '__main__':
     # histograms_hsv = load_histograms(HSV_HIST_NPY, ImageDescriptor('HSV'), BBDD_FOLDER)
     if len(os.listdir(FINAL_IMAGES))==0:
         denoiseAll(qsd_folder)
-    histograms = load_histograms(structure, TextureDescriptor(colorspace), qsd_folder, quantization)
+    histograms = load_histograms(structure, TextureDescriptor(colorspace), BBDD_FOLDER, quantization)
     # Attempt to load the ground truth labels, if the file exists
     labels = None
     try:
