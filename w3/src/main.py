@@ -84,7 +84,7 @@ def kullback_leibler_divergence(p, q):
     filt = np.logical_and(p != 0, q != 0)
     return np.sum(p[filt] * np.log2(p[filt] / q[filt]))
 
-def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, quantization, structure, level, mask, folder=qsd_folder):
+def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, quantization, structure, level, mask, folder):
     """Calculate mAP@K for a given similarity measure and descriptor."""
     measures = ComputeSimilarity()
     top_K = []
@@ -134,7 +134,7 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
 
 
             top_k = [k for k, v in sorted(similarities.items(), key=lambda item: item[1], reverse=reverse)][:K]
-            top_k_numbers = [int(filename.split('.')[0]) for filename in top_k]
+            top_k_numbers = [int(filename.split('.')[0].split('_')[-1]) for filename in top_k]
             top_K.append(top_k_numbers)
 
     # print(top_K)
@@ -286,8 +286,9 @@ if __name__ == '__main__':
     # Load histograms for HLS and HSV
     # histograms_hls = load_histograms(HLS_HIST_NPY, ImageDescriptor('HLS'), BBDD_FOLDER)
     # histograms_hsv = load_histograms(HSV_HIST_NPY, ImageDescriptor('HSV'), BBDD_FOLDER)
-    denoiseAll(FINAL_IMAGES)
-    histograms = load_histograms(structure, TextureDescriptor(colorspace), FINAL_IMAGES, quantization)
+    if len(os.listdir(FINAL_IMAGES))==0:
+        denoiseAll(qsd_folder)
+    histograms = load_histograms(structure, TextureDescriptor(colorspace), qsd_folder, quantization)
     # Attempt to load the ground truth labels, if the file exists
     labels = None
     try:
