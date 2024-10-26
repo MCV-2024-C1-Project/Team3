@@ -396,7 +396,7 @@ def denoiseAll(image_path):
 
     for name in tqdm(os.listdir(image_path)):
         if name.endswith('.jpg'):
-            img = cv2.imread(image_path + name)
+            img = cv2.imread(os.path.join(image_path, name))
             denoiser = NonLinearDenoiser(img)
             
             wavelet_denoised = denoiser.waveletShrinkage3D(img, wavelet='bior1.3', level=3, threshold_factor=0.75)

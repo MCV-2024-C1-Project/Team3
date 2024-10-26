@@ -42,7 +42,7 @@ NO_BG_FOLDER =  os.path.join(DATA_FOLDER, 'qsd2_w3_no_bg')
 DENOISED_IMAGES = os.path.join(DATA_FOLDER, 'denoised_images')
 MASK_FOLDER =  os.path.join(DATA_FOLDER, 'masks')
 
-GT_CORRESPS_FILE = os.path.join(qsd_folder, 'gt_corresps.pkl')
+GT_CORRESPS_FILE = os.path.join(DATA_FOLDER, qsd_folder, 'gt_corresps.pkl')
 
 METHOD1_FOLDER = os.path.join(RESULTS_FOLDER, 'method1')  # Output folder for method1
 METHOD2_FOLDER = os.path.join(RESULTS_FOLDER, 'method2')  # Output folder for method2
@@ -121,8 +121,13 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
         
         try:
             image = cv2.imread(image_path)
-            mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-            pictures = detect_pictures(image, mask)  # Detect pictures (regions of interest)
+
+            if mask is not None:
+                mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+                pictures = detect_pictures(image, mask)  # Detect pictures (regions of interest)
+            else:
+                pictures = [image]
+
         except Exception as e:
             print(f"Error processing image {img}: {e}")
             continue
@@ -277,6 +282,8 @@ def background_images(original_folder, qsd_folder):
                     cv2.drawContours(final_image, [cnt], -1, 255, thickness=cv2.FILLED)
 
                 # Save the mask to MASK_FOLDER
+                if not os.path.exists(MASK_FOLDER):
+                    os.makedirs(MASK_FOLDER)
                 cv2.imwrite(os.path.join(MASK_FOLDER, image_name.split('.')[0] + ".png"), final_image)
 
                 # Load ground truth and compute metrics if available
@@ -311,9 +318,17 @@ def background_images(original_folder, qsd_folder):
 
 
 if __name__ == '__main__':
+    if qsd_folder == 'qsd1_w3':
+        qsd_folder = QSD1_W3_FOLDER
+    elif qsd_folder == 'qsd2_w3':
+        qsd_folder = QSD2_W3_FOLDER
+
     if not os.path.exists(RESULTS_FOLDER):
         os.makedirs(RESULTS_FOLDER)
         
+    if not os.path.exists(DENOISED_IMAGES):
+        os.makedirs(DENOISED_IMAGES)
+
     if len(os.listdir(DENOISED_IMAGES)) == 0:
         denoiseAll(qsd_folder)
 
