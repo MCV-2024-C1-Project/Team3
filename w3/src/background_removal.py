@@ -1,8 +1,7 @@
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
-from collections import deque
-import os
+import matplotlib.pyplot as plt
+from denoiser import LinearDenoiser
 
 class CalculateBackground():
     def __init__(self, image):
@@ -14,147 +13,277 @@ class CalculateBackground():
         plt.title(title)
         plt.axis('off')
         plt.show()
+        
+    def detect_contours_with_laplacian(self):
+        """Detect contours in the image using Laplacian edge detection."""
+        gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+
+        # Aplicar el filtro Laplaciano para calcular el gradiente
+        laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+        laplacian = np.uint8(np.absolute(laplacian))  # Convertir a uint8 para visualizarlo
+
+        # Aplicar un umbral para obtener los bordes binarios
+        _, edges = cv2.threshold(laplacian, 30, 255, cv2.THRESH_BINARY)
+
+        # Aplicar una dilatación para cerrar brechas entre bordes
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))  
+        edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)  
+
+        # Guardar la imagen de los bordes detectados
+        cv2.imwrite('./data/background/edges.jpg', edges)
+
+        # Encontrar los contornos
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        possible_frames = []
+        contour_image = self.image.copy()
+
+        mask_contours = np.zeros(self.image.shape[:2], dtype=np.uint8)  # Máscara para los contornos
+
+        for cnt in contours:
+            possible_frames.append(cnt)
+            cv2.drawContours(mask_contours, [cnt], -1, 255, -1)  # Dibujar el contorno cerrado en la máscara
+            cv2.drawContours(contour_image, [cnt], -1, (0, 255, 0), 5)  # Dibujar en la imagen de contorno
+
+        # Guardar la imagen con los contornos detectados
+        cv2.imwrite('./data/background/contour_image.jpg', contour_image)
+        cv2.imwrite('./data/background/mask_contours.jpg', mask_contours)
+
+        return mask_contours
     
-    def color_thresholding_simple(self, threshold, image = [], mask_des = []):
+    def detect_contours_with_prewitt(self, output_dir='./data/qsd2_w2/'):
+        """Detect contours in the image using Prewitt filter."""
+        gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
 
-        if len(image) == 0:
-            image = self.image
+        # Aplicar los operadores Prewitt en x y y
+        kernelx = np.array([[1, 0, -1], [1, 0, -1], [1, 0, -1]])
+        kernely = np.array([[1, 1, 1], [0, 0, 0], [-1, -1, -1]])
 
-        lab_image = cv2.cvtColor(image, cv2.COLOR_BGR2Lab)
-        l_channel = lab_image[:, :, 0]
-        a_channel = lab_image[:, :, 1]
-        b_channel = lab_image[:, :, 2]
+        prewitt_x = cv2.filter2D(gray, -1, kernelx)  # Gradiente en x
+        prewitt_y = cv2.filter2D(gray, -1, kernely)  # Gradiente en y
 
-        lower_bound = np.array([0, -15, -15])  # Valor L muy bajo para incluir sombras muy oscuras
-        upper_bound = np.array([60, 15, 15])    # Valor L un poco más alto para grises oscuros
+        # Calcular la magnitud total del gradiente
+        magnitude = np.sqrt(np.square(prewitt_x) + np.square(prewitt_y))
+        magnitude = np.uint8(magnitude)
 
-        mask = cv2.inRange(lab_image, lower_bound, upper_bound)
+        # Aplicar un umbral para obtener los bordes binarios
+        _, edges = cv2.threshold(magnitude, 30, 255, cv2.THRESH_BINARY)
 
-        if len(mask_des) > 0:
-            mask = mask + mask_des
+        # Aplicar una dilatación para cerrar brechas entre bordes
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))  
+        edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)  
 
-        return mask
+        # Guardar la imagen de los bordes detectados
+        cv2.imwrite('./data/background/edges.jpg', edges)
 
-    def convert_to_lab(self, image):
-        """Convert the image to CIELAB color space."""
-        return cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        # Encontrar los contornos
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        possible_frames = []
+        contour_image = self.image.copy()
+
+        mask_contours = np.zeros(self.image.shape[:2], dtype=np.uint8)  # Máscara para los contornos
+
+        for cnt in contours:
+            possible_frames.append(cnt)
+            cv2.drawContours(mask_contours, [cnt], -1, 255, -1)  # Dibujar el contorno cerrado en la máscara
+            cv2.drawContours(contour_image, [cnt], -1, (0, 255, 0), 5)  # Dibujar en la imagen de contorno
+
+        # Guardar la imagen con los contornos detectados
+        cv2.imwrite('./data/background/contour_image.jpg', contour_image)
+        cv2.imwrite('./data/background/mask_contours.jpg', mask_contours)
+
+        return mask_contours
     
-    def create_mask(self, shape):
-        """Create an empty mask for the region."""
-        return np.zeros(shape[:2], dtype=np.uint8)
+    def detect_contours_with_canny(self):
+        """Detect contours in the image using Canny edge detection."""
+        gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+
+        # Aplicar filtro de Canny (Los umbrales pueden ajustarse según las necesidades)
+        edges = cv2.Canny(gray, 10, 200)
+
+        # Aplicar una dilatación para cerrar brechas entre bordes
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))  
+        edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)  
+
+        # Guardar la imagen de los bordes detectados
+        cv2.imwrite('./data/background/edges.jpg', edges)
+
+        # Encontrar los contornos
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        possible_frames = []
+        contour_image = self.image.copy()
+
+        mask_contours = np.zeros(self.image.shape[:2], dtype=np.uint8)  # Máscara para los contornos
+
+        for cnt in contours:
+            possible_frames.append(cnt)
+            cv2.drawContours(mask_contours, [cnt], -1, 255, -1)  # Dibujar el contorno cerrado en la máscara
+            cv2.drawContours(contour_image, [cnt], -1, (0, 255, 0), 5)  # Dibujar en la imagen de contorno
+
+        cv2.imwrite('./data/background/contour_image.jpg', contour_image)
+        cv2.imwrite('./data/background/mask_contours.jpg', mask_contours)
+
+        return mask_contours
     
-    def get_seed_color(self, lab_image, seed_point):
-        """Get the color of the seed point."""
-        return lab_image[seed_point[1], seed_point[0]]  # (x, y)
+    def fourier_transform_background_detection(self):
+        """Detect background using Fourier Transform (frequency domain analysis)."""
+        gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+        
+        # Apply DFT (Discrete Fourier Transform)
+        dft = cv2.dft(np.float32(gray), flags=cv2.DFT_COMPLEX_OUTPUT)
+        dft_shift = np.fft.fftshift(dft)  # Shift zero frequency to center
 
-    def adaptive_thresholding(self,image):
-        """Apply adaptive thresholding to the image."""
-        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
-        return cv2.adaptiveThreshold(blurred_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+        # Create a mask with a high-pass filter (remove low frequencies, retain high frequencies)
+        rows, cols = gray.shape
+        crow, ccol = rows // 2, cols // 2  # Center point
+        mask = np.ones((rows, cols, 2), np.uint8)
+        r = 40  # Radius of the high-pass filter
+        mask[crow - r:crow + r, ccol - r:ccol + r] = 0  # Masking the center (low frequencies)
 
-    def flood_fill_region_with_edges(self, seed_point, tolerance=20, edge_map=None):
-        """Perform region growing using OpenCV's floodFill and stop at edges."""
-        lab_image = self.convert_to_lab(self.image)
-        height, width = lab_image.shape[:2]
+        # Apply the mask and inverse DFT
+        fshift = dft_shift * mask
+        f_ishift = np.fft.ifftshift(fshift)
+        img_back = cv2.idft(f_ishift)
+        img_back = cv2.magnitude(img_back[:, :, 0], img_back[:, :, 1])
 
-        # Expand mask size to include a 1-pixel border
-        mask = self.create_mask((height + 2, width + 2))
+        # Normalize and threshold the result to obtain a binary mask
+        img_back = cv2.normalize(img_back, None, 0, 255, cv2.NORM_MINMAX)
+        _, freq_mask = cv2.threshold(np.uint8(img_back), 50, 255, cv2.THRESH_BINARY)
 
-        # Incorporar edge_map en la máscara
-        if edge_map is not None:
-            mask[1:height+1, 1:width+1] = np.where(edge_map == 0, 1, 0)
+        # Optionally apply some morphological operations to clean the frequency mask
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+        freq_mask = cv2.morphologyEx(freq_mask, cv2.MORPH_CLOSE, kernel, iterations=2)
 
-        seed_color = self.get_seed_color(lab_image, seed_point)
-        lower_bound = (tolerance, tolerance, tolerance)
-        upper_bound = (tolerance, tolerance, tolerance)
+        # Save the mask for visualization
+        cv2.imwrite('./data/background/frequency_mask.jpg', freq_mask)
+        
+        # Encontrar los contornos en la máscara de frecuencias
+        contours, _ = cv2.findContours(freq_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        # Flood fill parameters
-        flags = 4 | (255 << 8)  # 4-connectivity and a fixed value of 255
+        # Crear una máscara de contornos de frecuencias
+        mask_contours_frequencies = np.zeros(self.image.shape[:2], dtype=np.uint8)
 
-        # Apply flood fill
-        cv2.floodFill(lab_image, mask, seed_point, 255, lower_bound, upper_bound, flags)
+        # Rellenar los contornos detectados en la máscara
+        for cnt in contours:
+            cv2.drawContours(mask_contours_frequencies, [cnt], -1, 255, -1)  # Rellenar contornos
 
-        # Remove the border added earlier
-        final_mask = mask[1:-1, 1:-1]
+        # Guardar la máscara de contornos de frecuencias
+        cv2.imwrite('./data/background/frequency_contours_mask.jpg', mask_contours_frequencies)
 
+        return mask_contours_frequencies
 
+    
+    def detect_contours_with_gradients(self):
+        """Detect contours in the image using gradient-based edge detection."""
+        gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2HLS)[:, :, 1]
+        
+        # Aplicar operador Sobel para calcular los gradientes en x y y
+        grad_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=7)  # Gradiente en x
+        grad_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=7)  # Gradiente en y
 
-        return final_mask
+        # Calcular la magnitud total del gradiente
+        magnitude = cv2.magnitude(grad_x, grad_y)
 
+        # Normalizar la magnitud para que esté entre 0 y 255
+        magnitude = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX)
 
+        # Convertir la magnitud a tipo uint8
+        magnitude = np.uint8(magnitude)
 
+        # Aplicar un umbral para obtener los bordes binarios
+        _, edges = cv2.threshold(magnitude, 15, 255, cv2.THRESH_BINARY)
+
+        # Aplicar una dilatación para cerrar brechas entre bordes
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))  # Kernel de 5x5 para operaciones morfológicas
+        edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)  # Aplicar un cierre para unir bordes
+
+        # Guardar la imagen de los bordes detectados
+        cv2.imwrite('./data/background/edges.jpg', edges)
+
+        # Encontrar los contornos
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        possible_frames = []
+        contour_image = self.image.copy()
+
+        mask_contours = np.zeros(self.image.shape[:2], dtype=np.uint8)  # Máscara para los contornos
+
+        for cnt in contours:
+            possible_frames.append(cnt)
+            cv2.drawContours(mask_contours, [cnt], -1, 255, -1)  # Dibujar el contorno cerrado en la máscara
+            cv2.drawContours(contour_image, [cnt], -1, (0, 255, 0), 5)  # Dibujar en la imagen de contorno
+
+        # Guardar la imagen con los contornos detectados
+        cv2.imwrite('./data/background/contour_image.jpg', contour_image)
+        cv2.imwrite('./data/background/mask_contours.jpg', mask_contours)
+
+        return mask_contours
+
+    def process_frames(self):
+        """Process only contours (frames) detection."""
+        # mask_contours = self.detect_contours_with_gradients()
+        # mask_contours = self.detect_contours_with_laplacian()
+        # mask_contours = self.detect_contours_with_prewitt()
+        # mask_contours = self.detect_contours_with_canny()
+        
+        edges_mask = self.detect_contours_with_gradients()
+        
+
+        return edges_mask
 
     def apply_mask(self, mask):
         """Apply the mask to the original image to extract the foreground."""
-        # Invert the mask to consider everything outside the region
-        #inverted_mask = cv2.bitwise_not(mask)
-        
-        # Apply the inverted mask to get the background
         background_removed = cv2.bitwise_and(self.image, self.image, mask=mask)
-        
         return background_removed
-    
 
-    
     def morphological_operations_cleanse(self, final_mask):
-
-        # Morphological operations to eliminate noise
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (100, 1))
-
-        # Apply opening to remove small noise (erosion followed by dilation)
-        #cleaned_mask = cv2.morphologyEx(final_mask, cv2.MORPH_OPEN, kernel)
-        # Optionally, apply closing to fill small holes (dilation followed by erosion)
+        """Apply morphological operations to clean the mask."""
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (120, 1))
         cleaned_mask = cv2.morphologyEx(final_mask, cv2.MORPH_OPEN, kernel)
-        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (100, 100)))
-
-        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (20, 10)))
-
+        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (10, 10)))
+        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (10, 10)))
         
         return cleaned_mask
 
 if __name__ == "__main__":
-    # Load the image
-    image = cv2.imread('./data/qsd2_w2/00018.jpg')
-
-    background = CalculateBackground(image)
-
-
-    seed_points = [
-        (0, 0),  # Top-left corner
-        (image.shape[1] - 1, 0),  # Top-right corner
-        (0, image.shape[0] - 1),  # Bottom-left corner
-        (image.shape[1] - 1, image.shape[0] - 1),  # Bottom-right corner
-    ]
-
-    edge_map = background.adaptive_thresholding(image)
-
-    # Save edge map
-    cv2.imwrite('./data/qsd2_w2/edge_map.jpg', edge_map)
-
-# Perform region growing for each seed point and stack the masks
-    tot_mask = np.zeros(image.shape[:2], dtype=np.uint8)
-    for seed in seed_points:
-        mask = background.flood_fill_region_with_edges(seed, tolerance=5, edge_map=edge_map)
-        tot_mask = np.maximum(tot_mask, mask)
-
-    # Save total mask
-    cv2.imwrite('./data/qsd2_w2/flood.jpg', cv2.bitwise_not(tot_mask))
-
-    # Apply the mask to get the foreground
-    foreground = background.apply_mask(tot_mask)
-
-    final_mask = background.color_thresholding_simple(0, foreground)
-
+    # Cargar la imagen
+    image = cv2.imread('./data/qsd2_w3/00008.jpg')
+    linear_denoiser = LinearDenoiser(image)
     
+    denoise_image = linear_denoiser.medianFilter(5)
+    cv2.imwrite('./data/background/denoise_image.jpg', denoise_image)
+    background = CalculateBackground(denoise_image)
 
-    tot_mask = tot_mask + final_mask
+    # Detectar contornos
+    mask_contours = background.process_frames()
 
-    # Save color thresholding mask
-    cv2.imwrite('./data/qsd2_w2/color_thresholding.jpg', cv2.bitwise_not(tot_mask))
+    # Aplicar la máscara
+    foreground = background.apply_mask(mask_contours)
 
-    final_image = background.morphological_operations_cleanse(tot_mask)
-    final_image = cv2.bitwise_not(final_image)
+    # Realizar operaciones morfológicas finales para limpiar la máscara
+    cleaned_mask = background.morphological_operations_cleanse(mask_contours)
+            
+    # Encontrar todos los contornos en la máscara
+    contours, _ = cv2.findContours(cleaned_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # Filtrar los contornos por un área mínima
+    large_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 10000]
+    
+    # Ordenar los contornos por área en orden descendente
+    large_contours = sorted(large_contours, key=cv2.contourArea, reverse=True)
+    
+    # Seleccionar solo los contornos más grandes (ej: 2 más grandes)
+    largest_contours = large_contours[:2]
+    
+    # Crear una nueva máscara con solo los contornos seleccionados
+    filtered_mask = np.zeros(cleaned_mask.shape, dtype=np.uint8)
+    for cnt in largest_contours:
+        cv2.drawContours(filtered_mask, [cnt], -1, 255, thickness=cv2.FILLED)
 
-    # Save final image
-    cv2.imwrite('./data/qsd2_w2/final_image.jpg', final_image)
+    cv2.imwrite('./data/background/cleaned_mask.jpg', filtered_mask)
+    final_image = background.apply_mask(filtered_mask)
+
+    # Guardar la imagen final
+    cv2.imwrite('./data/background/final_image.jpg', final_image)

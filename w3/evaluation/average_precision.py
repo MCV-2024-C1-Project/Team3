@@ -22,6 +22,9 @@ def apk(actual, predicted, k=10):
             The average precision at k over the input lists
 
     """
+    if isinstance(actual, int):
+        actual = [actual]
+        
     if len(predicted)>k:
         predicted = predicted[:k]
 
@@ -41,19 +44,19 @@ def apk(actual, predicted, k=10):
 
 def mapk(actual, predicted, k=10):
     """
-    Computes the mean average precision at k.
+    Computes the mean average precision at k for the new format.
 
-    This function computes the mean average prescision at k between two lists
-    of lists of items.
+    This function computes the mean average precision at k between two lists
+    of lists of lists of items, where the first level corresponds to images,
+    the second level corresponds to regions of interest (cuadros), and the third
+    level corresponds to the predicted elements for each cuadro.
 
     Parameters
     ----------
     actual : list
-             A list of lists of elements that are to be predicted 
-             (order doesn't matter in the lists)
+             A list of lists of lists of elements that are to be predicted
     predicted : list
-                A list of lists of predicted elements
-                (order matters in the lists)
+                A list of lists of lists of predicted elements
     k : int, optional
         The maximum number of predicted elements
 
@@ -61,6 +64,19 @@ def mapk(actual, predicted, k=10):
     -------
     score : double
             The mean average precision at k over the input lists
-
     """
-    return np.mean([apk(a,p,k) for a,p in zip(actual, predicted)])
+    scores = []
+    
+    # Recorrer las imágenes
+    for actual_image, predicted_image in zip(actual, predicted):
+        image_scores = []
+        
+        # Recorrer los cuadros de la imagen
+        for actual_cuadro, predicted_cuadro in zip(actual_image, predicted_image):
+            image_scores.append(apk(actual_cuadro, predicted_cuadro, k))
+        
+        # Promedio de precisión para todos los cuadros en una imagen
+        scores.append(np.mean(image_scores))
+    
+    # Devolver el promedio de precisión entre todas las imágenes
+    return np.mean(scores)

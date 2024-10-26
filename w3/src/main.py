@@ -5,17 +5,17 @@ import cv2
 import numpy as np
 import pickle
 import argparse
-from descriptors import TextureDescriptor
+from descriptors import ImageDescriptor
 from similarity import ComputeSimilarity
 from evaluation.average_precision import mapk
 from background_removal import CalculateBackground
-from denoiser import denoiseAll
+from denoiser import denoiseAll, LinearDenoiser
 
 
 # Argument parser setup
 parser = argparse.ArgumentParser(description='Process image folder for similarity.')
-parser.add_argument('images_folder', type=str, help='Path to the image folder (e.g., ./data/qsd1_w3)')
-parser.add_argument('structure', type=str, help='DCT or LSB or DWT')
+parser.add_argument('images_folder', type=str, help='Path to the image folder (e.g., ./data/qsd1_w1)')
+parser.add_argument('dimension', type=str, help='Histogram dimension (e.g., 3D')
 parser.add_argument('colorspace', type=str, help='Histogram colorspace (e.g., HSV')
 # parser.add_argument('quantization', type=bool, help='Quantize dct descriptor')
 parser.add_argument('measure', type=str, help='Similarity measure (e.g., intersection')
@@ -24,7 +24,7 @@ args = parser.parse_args()
 
 # Define input folder based on argument
 qsd_folder = args.images_folder
-structure = args.structure
+dimension = args.dimension
 colorspace = args.colorspace
 quantization = False
 measure = args.measure
@@ -40,27 +40,27 @@ RESULTS_FOLDER = './results'
 GT_CORRESPS_FILE = os.path.join(qsd_folder, 'gt_corresps.pkl')
 
 MASK_FOLDER = './masks'
-NO_BG_FOLDER = './data/qsd2_w2_no_bg'
+NO_BG_FOLDER = './data/qsd2_w3_no_bg'
 
 METHOD1_FOLDER = os.path.join(RESULTS_FOLDER, 'method1')  # Output folder for method1
 METHOD2_FOLDER = os.path.join(RESULTS_FOLDER, 'method2')  # Output folder for method2
 
 FINAL_IMAGES = './data/final_images/'
 
-def load_histograms(structure, descriptor, folder_path,quantization):
+def load_histograms(dimension, structure, descriptor, folder_path):
     """Load histograms from file if available, otherwise calculate them."""
-    histogram_path = '_'.join(('results/descriptors', descriptor.color_space, structure,str(quantization))) + '.npy'
+    histogram_path = '_'.join(('results/histograms', dimension, descriptor.color_space, structure)) + '.npy'
     if os.path.exists(histogram_path):
         print(f"Loading histograms from {histogram_path}...")
         histograms = np.load(histogram_path, allow_pickle=True).item()
     else:
-        print(f"Calculating histograms for {structure}, {descriptor.color_space}, quantization {quantization}...")
-        histograms = process_images(folder_path, structure, descriptor,quantization)
+        print(f"Calculating histograms for {dimension}, {structure}, {descriptor.color_space}...")
+        histograms = process_images(folder_path, dimension, structure, descriptor)
         np.save(histogram_path, histograms)
         print(f"Histograms saved to {histogram_path}")
     return histograms
 
-def process_images(folder_path, structure, descriptor,quantization):
+def process_images(folder_path, dimension, structure, descriptor):
     """Calculate histograms for all images in the folder."""
     histograms_dict = {}
     for filename in sorted(os.listdir(folder_path)):
@@ -70,12 +70,13 @@ def process_images(folder_path, structure, descriptor,quantization):
             if image is None:
                 print(f"Error loading image {image_path}")
                 continue
-            hist = descriptor.describe(image, structure,quantization)
+            hist = descriptor.describe(image, dimension, structure)
             histograms_dict[filename] = {
                 'color_space': descriptor.color_space,
-                'quantization': quantization,
+                'dimension': dimension,
                 'structure': structure,
-                'descriptor': hist
+                'histogram_bins': descriptor.histogram_bins,
+                'histograms': hist
             }
     return histograms_dict
 def kullback_leibler_divergence(p, q):
@@ -84,20 +85,45 @@ def kullback_leibler_divergence(p, q):
     filt = np.logical_and(p != 0, q != 0)
     return np.sum(p[filt] * np.log2(p[filt] / q[filt]))
 
-def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, quantization, structure, level, mask, folder):
+
+
+def detect_pictures(image, mask):
+    """Detect possible cuadros (regions of interest) in the image using contours."""
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    cuadros = []
+    for contour in contours: # Filter out small areas (noise)
+        x, y, w, h = cv2.boundingRect(contour)
+        cuadro = image[y:y+h, x:x+w]
+        
+        # Remove black borders around the cuadro
+        linear_denoiser = LinearDenoiser(cuadro)
+        pict = linear_denoiser.medianFilter(5)
+        cuadros.append(pict)  # Append the cleaned cuadro
+        
+        # # Mostrar cada cuadro detectado
+        # cv2.imshow('Cuadro Detectado', pict)
+        # cv2.waitKey(0)  # Pausa hasta que presiones una tecla
+    
+    return cuadros
+
+def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, dimension, structure, level, mask, folder=qsd_folder):
     """Calculate mAP@K for a given similarity measure and descriptor."""
     measures = ComputeSimilarity()
     top_K = []
 
     for img in sorted(os.listdir(folder)):
         image_path = os.path.join(folder, img)
+        mask_path = os.path.join(MASK_FOLDER, img)
 
         # Check if the file is an image
         if not img.endswith(".jpg") :
             continue
         
         try:
-            histogram = descriptor.describe(cv2.imread(image_path), structure,quantization)
+            image = cv2.imread(image_path)
+            mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+            pictures = detect_pictures(image, mask)  # Detect pictures (regions of interest)
         except Exception as e:
             print(f"Error processing image {img}: {e}")
             continue
@@ -140,7 +166,7 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
     return top_K  # Return top K results (list of lists)
 
 
-def process_similarity_measures(histograms, descriptor, labels, quantization, structure, k_val, method_folder, measure, mask, images_folder=qsd_folder):
+def process_similarity_measures(histograms, descriptor, labels, dimension, structure, k_val, method_folder, measure, mask, images_folder=qsd_folder):
     """Process all combinations of similarity measures for a single descriptor."""
     # similarity_measures = ["intersection", "canberra"]
 
@@ -148,14 +174,14 @@ def process_similarity_measures(histograms, descriptor, labels, quantization, st
     if structure == 'DCT' or structure =="LBP" or structure == 'DCT_simple':
         top_K = calculate_similarity(histograms, descriptor, labels, k_val, measure, quantization, structure, None, mask=mask, folder=images_folder)
         map_k = mapk(labels, top_K, k_val)
-        print(f"mAP@{k_val} for quantization {quantization}, {structure}, {descriptor.color_space} and {measure}: {map_k}")
+        print(f"mAP@{k_val} for {dimension}, {structure}, {descriptor.color_space} and {measure}: {map_k}")
     
-    # elif structure == 'block' or structure == 'heriarchical':
-    #     for level in range(3):
-    #         top_K = calculate_similarity(histograms, descriptor, labels, k_val, measure, quantization, structure, level,mask=mask, folder=images_folder)
-    #         map_k = mapk(labels, top_K, k_val)
-    #         # Calculate mAP
-    #         print(f"mAP@{k_val} for quantization {quantization}, {structure}, {descriptor.color_space} at level {level} and {measure}: {map_k}")
+    elif structure == 'block' or structure == 'heriarchical':
+        for level in range(3):
+            top_K = calculate_similarity(histograms, descriptor, labels, k_val, measure, dimension, structure, level,mask=mask, folder=images_folder)
+            map_k = mapk(labels, top_K, k_val)
+            # Calculate mAP
+            print(f"mAP@{k_val} for {dimension}, {structure}, {descriptor.color_space} at level {level} and {measure}: {map_k}")
 
     if not os.path.exists(method_folder):
         os.makedirs(method_folder)
@@ -203,9 +229,9 @@ def compute_precision_recall_f1(ground_truth, predicted):
 def background_images(qsd_folder):
     # Calculate background images
     final_image=None
-    if qsd_folder == "./data/qsd2_w1" or qsd_folder == "./data\qst2_w1" or qsd_folder == "./data/qst2_w1":
+    if qsd_folder == "./data/qsd2_w3" or qsd_folder == "./data\qst2_w1" or qsd_folder == "./data/qst2_w1":
         print("Removing background")
-        NO_BG_FOLDER = './data/qsd2_w2_no_bg'
+        NO_BG_FOLDER = './data/qsd2_w3_no_bg'
         if not os.path.exists(NO_BG_FOLDER):
             os.makedirs(NO_BG_FOLDER)
         
@@ -221,27 +247,39 @@ def background_images(qsd_folder):
                 if image is None:
                     print(f"Error loading image {image_name}")
                     continue
+                # print(f"{image_name}")
+                linear_denoiser = LinearDenoiser(image)
+    
+                denoise_image = linear_denoiser.medianFilter(5)
                 
-                background = CalculateBackground(image)
-                seed_points = [(0, 0), (image.shape[1] - 1, 0), (0, image.shape[0] - 1), (image.shape[1] - 1, image.shape[0] - 1)]
+                background = CalculateBackground(denoise_image)
+                mask_contours = background.process_frames()
+                
+                # Realizar operaciones morfológicas finales para limpiar la máscara
+                cleaned_mask = background.morphological_operations_cleanse(mask_contours)
+                
+                # Encontrar todos los contornos en la máscara
+                contours, _ = cv2.findContours(cleaned_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                
+                # Filtrar los contornos por un área mínima
+                large_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 10000]
+                
+                # Ordenar los contornos por área en orden descendente
+                large_contours = sorted(large_contours, key=cv2.contourArea, reverse=True)
+                
+                # Seleccionar solo los contornos más grandes (ej: 2 más grandes)
+                largest_contours = large_contours[:2]
+                
+                # Crear una nueva máscara con solo los contornos seleccionados
+                final_image = np.zeros(cleaned_mask.shape, dtype=np.uint8)
+                for cnt in largest_contours:
+                    cv2.drawContours(final_image, [cnt], -1, 255, thickness=cv2.FILLED)
 
-                edge_map = background.adaptive_thresholding(image)
-                tot_mask = np.zeros(image.shape[:2], dtype=np.uint8)
-
-                for seed in seed_points:
-                    mask = background.flood_fill_region_with_edges(seed, tolerance=5, edge_map=edge_map)
-                    tot_mask = np.maximum(tot_mask, mask)
-
-                foreground = background.apply_mask(tot_mask)
-                final_mask = background.color_thresholding_simple(0, foreground)
-                tot_mask = tot_mask + final_mask
-                final_image = background.morphological_operations_cleanse(tot_mask)
-                final_image = cv2.bitwise_not(final_image)
 
                 cv2.imwrite(os.path.join(MASK_FOLDER, image_name.split('.')[0] + ".png"), final_image)
 
-                if qsd_folder == "./data/qsd2_w2/":
-                    gt = cv2.imread(os.path.join("./data/qsd2_w2/", image_name[:-4] + ".png"), cv2.IMREAD_GRAYSCALE)
+                if qsd_folder == "./data/qsd2_w3":
+                    gt = cv2.imread(os.path.join("./data/qsd2_w3/", image_name[:-4] + ".png"), cv2.IMREAD_GRAYSCALE)
                     if gt is not None:
                         intersection = np.logical_and(gt, final_image)
                         union = np.logical_or(gt, final_image)
@@ -256,12 +294,12 @@ def background_images(qsd_folder):
                 # image_bgra = cv2.cvtColor(image, cv2.COLOR_BGR2BGRA)
                 # image_bgra[final_image == 0, 3] = 0
                 # image_bgra[final_image != 0, 3] = 255
-                masked_image = cv2.bitwise_and(image, image, mask=final_image)
-                x, y, w, h = cv2.boundingRect(final_image)
-                cropped_image = masked_image[y:y+h, x:x+w]
+                # masked_image = cv2.bitwise_and(image, image, mask=final_image)
+                # x, y, w, h = cv2.boundingRect(final_image)
+                # cropped_image = masked_image[y:y+h, x:x+w]
                 output_path = os.path.join(NO_BG_FOLDER, image_name.split('.')[0] + ".png")
                 
-                cv2.imwrite(output_path, cropped_image)
+                cv2.imwrite(output_path, image)
 
         qsd_folder = NO_BG_FOLDER
         # Safely compute mean metrics
@@ -299,19 +337,19 @@ if __name__ == '__main__':
 
     _, mask = background_images(FINAL_IMAGES)
     # After all masks have been applied and evaluated, process similarity with the background-removed images
-    print("Processing similarity using method:", colorspace, "structure:", structure,"quantization:", quantization)
+    print("Processing similarity using method:", colorspace, "dimension:", dimension, "structure:", structure)
     print(qsd_folder)
     process_similarity_measures(histograms, TextureDescriptor(colorspace), labels, quantization, structure, k_val=1, mask=cv2.bitwise_not(mask), measure=measure, method_folder=METHOD1_FOLDER, images_folder=FINAL_IMAGES)
                 
 
 
-    # print("Processing similarity for test 1 using method:", colorspace, "quantization:", quantization, "structure:", structure)
+    # print("Processing similarity for test 1 using method:", colorspace, "dimension:", dimension, "structure:", structure)
     # # Process similarity measures using the HLS descriptor and the top-K similarity
-    # process_similarity_measures(histograms, TextureDescriptor(colorspace), labels, quantization, structure, k_val=10, mask=None, measure=measure, method_folder=METHOD1_FOLDER, images_folder=QST1_W2_FOLDER)
+    # process_similarity_measures(histograms, ImageDescriptor(colorspace), labels, dimension, structure, k_val=10, mask=None, measure=measure, method_folder=METHOD1_FOLDER, images_folder=QST1_W2_FOLDER)
     
     # qsd_folder = QST2_W2_FOLDER
     # print(qsd_folder)
     # qsd_folder, mask = background_images(qsd_folder)
-    # print("Processing similarity for test 2 using method:", colorspace, "quantization:", quantization, "structure:", structure)
+    # print("Processing similarity for test 2 using method:", colorspace, "dimension:", dimension, "structure:", structure)
     # # Process similarity measures using the HLS descriptor and the top-K similarity
-    # process_similarity_measures(histograms, TextureDescriptor(colorspace), labels, quantization, structure, k_val=10, mask=cv2.bitwise_not(mask), measure=measure, method_folder=METHOD2_FOLDER, images_folder=NO_BG_FOLDER)
+    # process_similarity_measures(histograms, ImageDescriptor(colorspace), labels, dimension, structure, k_val=10, mask=cv2.bitwise_not(mask), measure=measure, method_folder=METHOD2_FOLDER, images_folder=NO_BG_FOLDER)
