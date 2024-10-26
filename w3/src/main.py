@@ -35,8 +35,8 @@ BBDD_FOLDER = os.path.join(DATA_FOLDER, 'BBDD')
 
 QST1_W2_FOLDER = os.path.join(DATA_FOLDER, 'qst1_w2')
 QST2_W2_FOLDER = os.path.join(DATA_FOLDER, 'qst2_w1')
-QST1_W3_FOLDER = os.path.join(DATA_FOLDER, 'qst1_w3')
-QST2_W3_FOLDER = os.path.join(DATA_FOLDER, 'qst2_w3')
+QSD1_W3_FOLDER = os.path.join(DATA_FOLDER, 'qsd1_w3')
+QSD2_W3_FOLDER = os.path.join(DATA_FOLDER, 'qsd2_w3')
 NO_BG_FOLDER =  os.path.join(DATA_FOLDER, 'qsd2_w3_no_bg')
 
 DENOISED_IMAGES = os.path.join(DATA_FOLDER, 'denoised_images')
@@ -229,7 +229,7 @@ def compute_precision_recall_f1(ground_truth, predicted):
 def background_images(original_folder, qsd_folder):
     # Calculate background images
     final_image = None
-    if original_folder == QST2_W3_FOLDER and qsd_folder == DENOISED_IMAGES:
+    if original_folder == QSD2_W3_FOLDER and qsd_folder == DENOISED_IMAGES:
         print("Removing background")
 
         if not os.path.exists(NO_BG_FOLDER):
@@ -280,7 +280,7 @@ def background_images(original_folder, qsd_folder):
                 cv2.imwrite(os.path.join(MASK_FOLDER, image_name.split('.')[0] + ".png"), final_image)
 
                 # Load ground truth and compute metrics if available
-                gt = cv2.imread(os.path.join("./data/qsd2_w3/", image_name[:-4] + ".png"), cv2.IMREAD_GRAYSCALE)
+                gt = cv2.imread(os.path.join(QSD2_W3_FOLDER, image_name[:-4] + ".png"), cv2.IMREAD_GRAYSCALE)
                 if gt is not None:
                     intersection = np.logical_and(gt, final_image)
                     union = np.logical_or(gt, final_image)
