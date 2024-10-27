@@ -379,43 +379,27 @@ def denoiseOne(image_path, name):
 
     denoiser = NonLinearDenoiser(img)
 
-    wavelet_denoised = denoiser.waveletShrinkage3D(img, wavelet='bior1.3', level=3, threshold_factor=0.75)
-    wav_median_denoised = denoiser.waveletShrinkage3D(cv2.medianBlur(img, 5), wavelet='bior1.3', level=3, threshold_factor=0.75)
-
-    wavelet_denoised = cv2.resize(wavelet_denoised, (img.shape[1], img.shape[0]))
+    wav_median_denoised = denoiser.waveletShrinkage3D(cv2.medianBlur(img, 5), wavelet='bior1.3', level=2, threshold_factor=0.25)
     wav_median_denoised = cv2.resize(wav_median_denoised, (img.shape[1], img.shape[0]))
-
-    wavelet_psnr = metrics.psnr(img, wavelet_denoised)
     wav_median_psnr = metrics.psnr(img, wav_median_denoised)
 
-    if wavelet_psnr > wav_median_psnr:
-        return wavelet_denoised
-    else:
-        return wav_median_denoised
+    return wav_median_denoised
     
-def denoiseAll(image_path, denoised_folder):
+def denoiseAll(image_path):
 
     metrics = NoiseMetric()
 
     for name in tqdm(os.listdir(image_path)):
         if name.endswith('.jpg'):
-            img = cv2.imread(os.path.join(image_path, name))
+            img = cv2.imread(image_path + name)
+            img_orig = cv2.imread('./data/non_augmented/'+name)
+
             denoiser = NonLinearDenoiser(img)
-            
-            wavelet_denoised = denoiser.waveletShrinkage3D(img, wavelet='bior1.3', level=3, threshold_factor=0.75)
-            wav_median_denoised = denoiser.waveletShrinkage3D(cv2.medianBlur(img, 5), wavelet='bior1.3', level=3, threshold_factor=0.75)
-
-            wavelet_denoised = cv2.resize(wavelet_denoised, (img.shape[1], img.shape[0]))
+            wav_median_denoised = denoiser.waveletShrinkage3D(cv2.medianBlur(img, 5), wavelet='bior1.3', level=2, threshold_factor=0.25)
             wav_median_denoised = cv2.resize(wav_median_denoised, (img.shape[1], img.shape[0]))
+            wav_median_psnr = metrics.psnr(img_orig, wav_median_denoised)
 
-            wavelet_psnr = metrics.psnr(img, wavelet_denoised)
-            wav_median_psnr = metrics.psnr(img, wav_median_denoised)
-
-            if wavelet_psnr > wav_median_psnr:
-                cv2.imwrite(os.path.join(denoised_folder, name), wavelet_denoised)
-
-            else:
-                cv2.imwrite(os.path.join(denoised_folder, name), wav_median_denoised)
+            cv2.imwrite('./data/final_images/'+name, wav_median_denoised)
 
     
 def test():
