@@ -261,7 +261,7 @@ def compute_precision_recall_f1(ground_truth, predicted):
     
     return precision, recall, f1_score
 
-def background_images( qsd_folder):
+def background_images(original_path, qsd_folder):
     # Calculate background images
     final_image = None
     if qsd_folder == DENOISED_IMAGES_2 or qsd_folder == DENOISED_IMAGES_TEST_2:
@@ -317,7 +317,12 @@ def background_images( qsd_folder):
                 cv2.imwrite(os.path.join(MASK_FOLDER, image_name.split('.')[0] + ".png"), final_image)
 
                 # Load ground truth and compute metrics if available
-                gt = cv2.imread(os.path.join(qsd_folder, image_name[:-4] + ".png"), cv2.IMREAD_GRAYSCALE)
+                gt_path = os.path.join(original_path, image_name[:-4] + ".png")
+                if os.path.exists(gt_path):
+                    gt = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)
+                else:
+                    gt = None
+                    
                 if gt is not None:
                     intersection = np.logical_and(gt, final_image)
                     union = np.logical_or(gt, final_image)
@@ -380,7 +385,7 @@ if __name__ == '__main__':
     except FileNotFoundError:
         print(f"Warning: Ground truth file {GT_CORRESPS_FILE} not found. Continuing without labels.")
 
-    _, mask = background_images(denoised_images)
+    _, mask = background_images(qsd_folder, denoised_images)
     # After all masks have been applied and evaluated, process similarity with the background-removed images
     print("Processing similarity using method:", colorspace, "structure:", structure)
     process_similarity_measures(histograms, TextureDescriptor(colorspace), labels, quantization, structure, k_val=1, mask=cv2.bitwise_not(mask), measure=measure, method_folder=METHOD1_FOLDER, images_folder=denoised_images)
