@@ -39,7 +39,11 @@ QSD1_W3_FOLDER = os.path.join(DATA_FOLDER, 'qsd1_w3')
 QSD2_W3_FOLDER = os.path.join(DATA_FOLDER, 'qsd2_w3')
 NO_BG_FOLDER =  os.path.join(DATA_FOLDER, 'qsd2_w3_no_bg')
 
-DENOISED_IMAGES = os.path.join(DATA_FOLDER, 'denoised_images')
+DENOISED_IMAGES_1 = os.path.join(DATA_FOLDER, 'denoised_images_1')
+DENOISED_IMAGES_2 = os.path.join(DATA_FOLDER, 'denoised_images_2')
+DENOISED_IMAGES_TEST_1 = os.path.join(DATA_FOLDER, 'denoised_images_test_1')
+DENOISED_IMAGES_TEST_2 = os.path.join(DATA_FOLDER, 'denoised_images_test_2')
+
 MASK_FOLDER =  os.path.join(DATA_FOLDER, 'masks')
 
 GT_CORRESPS_FILE = os.path.join(DATA_FOLDER, qsd_folder, 'gt_corresps.pkl')
@@ -257,10 +261,10 @@ def compute_precision_recall_f1(ground_truth, predicted):
     
     return precision, recall, f1_score
 
-def background_images(original_folder, qsd_folder):
+def background_images( qsd_folder):
     # Calculate background images
     final_image = None
-    if (original_folder == QSD2_W3_FOLDER or original_folder == QST2_W3_FOLDER) and qsd_folder == DENOISED_IMAGES:
+    if qsd_folder == DENOISED_IMAGES_2 or qsd_folder == DENOISED_IMAGES_TEST_2:
         print("Removing background")
 
         if not os.path.exists(NO_BG_FOLDER):
@@ -346,21 +350,25 @@ def background_images(original_folder, qsd_folder):
 if __name__ == '__main__':
     if qsd_folder == 'qsd1_w3':
         qsd_folder = QSD1_W3_FOLDER
+        denoised_images = DENOISED_IMAGES_1
     elif qsd_folder == 'qsd2_w3':
         qsd_folder = QSD2_W3_FOLDER
+        denoised_images = DENOISED_IMAGES_2
     elif qsd_folder == 'qst1_w3':
         qsd_folder = QST1_W3_FOLDER
+        denoised_images = DENOISED_IMAGES_TEST_1
     elif qsd_folder == 'qst2_w3':
         qsd_folder = QST2_W3_FOLDER
+        denoised_images = DENOISED_IMAGES_TEST_2
 
     if not os.path.exists(RESULTS_FOLDER):
         os.makedirs(RESULTS_FOLDER)
         
-    if not os.path.exists(DENOISED_IMAGES):
-        os.makedirs(DENOISED_IMAGES)
+    if not os.path.exists(denoised_images):
+        os.makedirs(denoised_images)
 
-    if len(os.listdir(DENOISED_IMAGES)) == 0:
-        denoiseAll(qsd_folder)
+    if len(os.listdir(denoised_images)) == 0:
+        denoiseAll(qsd_folder, denoised_images)
 
     histograms = load_histograms(structure, TextureDescriptor(colorspace), BBDD_FOLDER, quantization)
     # Attempt to load the ground truth labels, if the file exists
@@ -372,8 +380,8 @@ if __name__ == '__main__':
     except FileNotFoundError:
         print(f"Warning: Ground truth file {GT_CORRESPS_FILE} not found. Continuing without labels.")
 
-    _, mask = background_images(qsd_folder, DENOISED_IMAGES)
+    _, mask = background_images(denoised_images)
     # After all masks have been applied and evaluated, process similarity with the background-removed images
     print("Processing similarity using method:", colorspace, "structure:", structure)
-    process_similarity_measures(histograms, TextureDescriptor(colorspace), labels, quantization, structure, k_val=1, mask=cv2.bitwise_not(mask), measure=measure, method_folder=METHOD1_FOLDER, images_folder=DENOISED_IMAGES)
+    process_similarity_measures(histograms, TextureDescriptor(colorspace), labels, quantization, structure, k_val=1, mask=cv2.bitwise_not(mask), measure=measure, method_folder=METHOD1_FOLDER, images_folder=denoised_images)
                 

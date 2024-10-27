@@ -390,7 +390,7 @@ def denoiseOne(image_path, name):
     else:
         return wav_median_denoised
     
-def denoiseAll(image_path):
+def denoiseAll(image_path, denoised_path):
 
     metrics = NoiseMetric()
 
@@ -409,11 +409,10 @@ def denoiseAll(image_path):
             wav_median_psnr = metrics.psnr(img, wav_median_denoised)
 
             if wavelet_psnr > wav_median_psnr:
-                cv2.imwrite('./data/denoised_images/'+name, wavelet_denoised)
+                cv2.imwrite(os.path.join(denoised_path, name), wavelet_denoised)
 
             else:
-                cv2.imwrite('./data/denoised_images/'+name, wav_median_denoised)
-
+                cv2.imwrite(os.path.join(denoised_path, name), wav_median_denoised)
     
 def test():
 
