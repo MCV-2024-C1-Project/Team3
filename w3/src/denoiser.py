@@ -7,20 +7,48 @@ from skimage.metrics import structural_similarity as ssim
 from tqdm import tqdm
 import bm3d
 
+DATA_FOLDER = './data'
+DENOISED_FOLDER = os.path.join(DATA_FOLDER, 'denoised_images')
+
 class LinearDenoiser():
+
+    """
+        Class to apply linear denoising filters to an image.
+    """
+
+
     def __init__(self, image):
         self.img = image
 
     def boxFilter(self, kernelSize):
+        """
+            Apply a box filter to the image.
+
+            Parameters:
+                kernelSize (int): Size of the kernel to apply the filter.
+        """
         img=self.img.copy()
         return cv2.blur(img, (kernelSize, kernelSize))
     
     def medianFilter(self, kernelSize):
+        """
+            Apply a median filter to the image.
+
+            Parameters:
+                kernelSize (int): Size of the kernel to apply the filter.
+        """
         img = self.img.copy()
         return cv2.medianBlur(img, kernelSize)
     
     def butterworthLowPassFilter(self, d0, n):
 
+        """
+            Apply a Butterworth low-pass filter to the image.
+
+            Parameters:
+                d0 (int): Cutoff frequency.
+                n (int): Order of the filter
+        """
         img = self.img.copy()
 
         if len(img.shape) == 3:
@@ -42,18 +70,34 @@ class LinearDenoiser():
     
     def butterworthGrayLowPass(self, channelImg, d0, n):
 
+        """
+            Apply a Butterworth low-pass filter to a grayscale image.
+
+            Parameters:
+                channelImg (np.array): Grayscale image.
+                d0 (int): Cutoff frequency.
+                n (int): Order of the filter
+        """
+
+        # Apply the Fourier Transform to the image
         f = np.fft.fft2(channelImg)
         fshift = np.fft.fftshift(f)
 
         rows, cols = channelImg.shape
 
+
+        # Create a meshgrid to calculate the distance from the center
         x = np.linspace(-cols/2, cols/2, cols)
         y = np.linspace(-rows/2, rows/2, rows)
         x, y = np.meshgrid(x, y)
+
+        # Calculate the distance from the center   
         distance = np.sqrt((x)**2 + (y)**2)
 
+        # Create the Butterworth filter
         butterworth_filter = 1 / (1 + (distance / d0)**(2*n))
 
+        # Apply the filter to the image
         fshift_filtered = fshift * butterworth_filter
         f_ishift = np.fft.ifftshift(fshift_filtered)
         img_back = np.fft.ifft2(f_ishift)
@@ -62,20 +106,50 @@ class LinearDenoiser():
         return np.uint8(np.clip(img_back, 0, 255))
     
     def gaussianFilter(self, kernelSize, sigmaX):
+
+        """
+            Apply a Gaussian filter to the image.
+
+            Parameters:
+                kernelSize (int): Size of the kernel to apply the filter.
+                sigmaX (int): Standard deviation of the filter.
+        """
         img = self.img.copy()
         return cv2.GaussianBlur(img, (kernelSize, kernelSize), sigmaX)
     
     def bilateralFilter(self, d, sigmaColor, sigmaSpace):
+
+        """
+            Apply a bilateral filter to the image.
+
+            Parameters:
+                d (int): Diameter of the pixel neighborhood.
+                sigmaColor (int): Filter sigma in the color space.
+                sigmaSpace (int): Filter sigma in the coordinate space.
+        """
         img = self.img.copy()
         return cv2.bilateralFilter(img, d, sigmaColor, sigmaSpace)
     
     def Convolution2DFilter(self, kernelSize):
+
+        """
+            Apply a 2D convolution filter to the image.
+
+            Parameters:
+                kernelSize (int): Size of the kernel to apply the filter.
+        """
         img = self.img.copy()
         kernel = np.ones((kernelSize, kernelSize), np.float32) / (kernelSize * kernelSize)
         return cv2.filter2D(img, -1, kernel)
     
     def fftLowPassFilter(self, cutoff):
+        
+        """
+            Apply a low-pass filter using FFT to the image.
 
+            Parameters:
+                cutoff (int): Cutoff frequency.
+        """
         img = self.img.copy()
 
         if len(img.shape) == 3:
@@ -94,14 +168,27 @@ class LinearDenoiser():
     
     def fftLowPassGray(self, image, cutoff):
 
+        """
+            Apply a low-pass filter using FFT to a grayscale image.
+
+            Parameters:
+                image (np.array): Grayscale image.
+                cutoff (int): Cutoff frequency.
+        """
+
+        # Apply the Fourier Transform to the image
         f = np.fft.fft2(image)
         fshift = np.fft.fftshift(f)
 
+        # Create a mask to filter the image
         rows, cols = image.shape
         crow, ccol = rows // 2, cols // 2
         mask = np.zeros((rows, cols), np.uint8)
+
+        # Create a square mask with the cutoff frequency
         mask[crow - cutoff:crow + cutoff, ccol - cutoff:ccol + cutoff] = 1
 
+        # Apply the mask to the image
         fshift_filtered = fshift * mask
         f_ishift = np.fft.ifftshift(fshift_filtered)
         img_back = np.fft.ifft2(f_ishift)
@@ -109,6 +196,13 @@ class LinearDenoiser():
         return img_back
     
     def gaussianLowPassFilter(self, sigma):
+
+        """
+            Apply a low-pass filter using Gaussian to the image.
+
+            Parameters:
+                sigma (int): Standard deviation of the filter
+        """
 
         img = self.img.copy()
         
@@ -127,23 +221,48 @@ class LinearDenoiser():
     
     def gaussianLowPassGray(self, image, sigma):
 
+        """
+            Apply a low-pass filter using Gaussian to a grayscale image.
+
+            Parameters:
+                image (np.array): Grayscale image.
+                sigma (int): Standard deviation of the filter
+        """
+
+        # Apply the Fourier Transform to the image
         f = np.fft.fft2(image)
         fshift = np.fft.fftshift(f)
 
         rows, cols = image.shape
 
+        # Create a meshgrid to calculate the distance from the center
         x = np.linspace(-cols/2, cols/2, cols)
         y = np.linspace(-rows/2, rows/2, rows)
         x, y = np.meshgrid(x, y)
+
+        # Cretae the Gaussian filter
         gaussian_filter = np.exp(-(x**2 + y**2) / (2 * sigma**2))
 
+        # Apply the filter to the image
         fshift_filtered = fshift * gaussian_filter
+
+        # Apply the inverse Fourier Transform
         f_ishift = np.fft.ifftshift(fshift_filtered)
         img_back = np.fft.ifft2(f_ishift)
         img_back = np.abs(img_back)
         return img_back
     
     def waveletTransformGray(self, img, wavelet):
+
+        """
+            Apply a wavelet transform to a grayscale image.
+
+            Parameters:
+                img (np.array): Grayscale image.
+                wavelet (str): Wavelet to apply.
+        """
+
+        # Perform the wavelet decomposition
         coeffs = pywt.wavedec2(img, wavelet)
         coeffs_thresh = [coeffs[0]]  # Approximation coefficients
 
@@ -161,6 +280,13 @@ class LinearDenoiser():
 
     def waveletTransformFilter(self, wavelet_type):
 
+        """
+            Apply a wavelet transform to the image.
+
+            Parameters:
+                wavelet_type (str): Wavelet to apply.
+        """
+
         img = self.img.copy()
         b, g, r = cv2.split(img)
         b_filtered = self.waveletTransformGray(b, wavelet_type)
@@ -170,10 +296,26 @@ class LinearDenoiser():
 
     
 class NonLinearDenoiser():
+
+    """
+        Class to apply non-linear denoising filters to an image.
+    """
     def __init__(self, image):
         self.img = image
 
     def rof_denoising(self, lambda_val = 0.2, n_iter = 300, tau = 0.15, tol = 1e-6):
+
+        """
+            Apply Rudin-Osher-Fatemi (ROF) denoising to the image.
+
+            Parameters:
+                lambda_val (float): Regularization parameter.
+                n_iter (int): Number of iterations.
+                tau (float): Time step.
+                tol (float): Tolerance for convergence.
+        """
+
+
         img = self.img.copy()
         if len(img.shape) == 3:
             yuv_image = cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
@@ -186,6 +328,18 @@ class NonLinearDenoiser():
             return self.rof_denoise_channel(img, lambda_val, n_iter, tau, tol)
 
     def rof_denoise_channel(self, channel_img, lambda_val, n_iter, tau, tol):
+
+        """
+            Apply Rudin-Osher-Fatemi (ROF) denoising to a single-channel image.
+
+            Parameters:
+                channel_img (np.array): Single-channel image.
+                lambda_val (float): Regularization parameter.
+                n_iter (int): Number of iterations.
+                tau (float): Time step.
+                tol (float): Tolerance for convergence.
+        """
+
         # Initial values
         u = channel_img.astype(np.float64)
         px = np.zeros_like(channel_img)
@@ -226,13 +380,23 @@ class NonLinearDenoiser():
         return u
 
     def non_local_means_denoising(self, h = 20, templateWindowSize = 20, searchWindowSize = 10):
+
+        """
+            Apply non-local means denoising to the image.
+
+            Parameters:
+                h (int): Filter strength.
+                templateWindowSize (int): Size of the template window.
+                searchWindowSize (int): Size of the search window.
+        """
+
         img = self.img.copy()
+
         # Ensure image is in 8-bit format
         if img.dtype != np.uint8:
             img_8u = cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
         else:
             img_8u = img
-
 
         # If the image is color (3 channels), use the color version of the function
         if len(img_8u.shape) == 3:
@@ -245,13 +409,25 @@ class NonLinearDenoiser():
         return np.uint8(np.clip(denoised_image * 255, 0, 255))
 
     def bmd3_denoising_byhand(self, block_size = 9, search_window = 21, h = 10):
+
+        """
+            Apply block-matching 3D denoising to the image.
+
+            Parameters:
+                block_size (int): Size of the block to compare.
+                search_window (int): Size of the search window.
+                h (int): Filter strength.
+        """
+
         img = self.img.copy()
 
+        # Pad the image to avoid boundary issues
         padded_img = cv2.copyMakeBorder(img, block_size // 2, block_size // 2,
                                             block_size // 2, block_size // 2,
                                             cv2.BORDER_REFLECT)
         denoised_img = np.zeros_like(img)
 
+        # Iterate over the image
         for i in tqdm(range(img.shape[0])):
             for j in range(img.shape[1]):
                 # Extract the current block
@@ -289,6 +465,15 @@ class NonLinearDenoiser():
         return np.clip(denoised_img, 0, 255). astype(np.uint8)
     
     def bm3d_denoising(self, sigma_psd = 25, stage_arg = bm3d.BM3DStages.ALL_STAGES):
+        
+        """
+            Apply BM3D denoising to the image.
+
+            Parameters:
+                sigma_psd (int): Standard deviation of the noise.
+                stage_arg (int): Stages of the BM3D algorithm to apply.
+        """
+
         img = self.img.copy()
 
         if len(img.shape) == 3:
@@ -304,6 +489,15 @@ class NonLinearDenoiser():
     
     def waveletShrinkage3D(self, img, wavelet = 'bior1.3', level = 3, threshold_factor = 0.75):
 
+        """
+            Apply wavelet shrinkage to the image.
+
+            Parameters:
+                img (np.array): Image to denoise.
+                wavelet (str): Wavelet to apply.
+                level (int): Level of decomposition.
+                threshold_factor (float): Factor to apply to the threshold.
+        """
 
         if len(img.shape) == 3:
             b, g, r = cv2.split(img)
@@ -317,8 +511,15 @@ class NonLinearDenoiser():
     
     def adaptive_threshold(self, data, sigma, level, max_level, factor):
         """
-        Applies adaptive thresholding based on the detail level.
-        The threshold decreases with increasing level of detail.
+            Applies adaptive thresholding based on the detail level.
+            The threshold decreases with increasing level of detail.
+
+            Parameters:
+                data (np.array): Data to threshold.
+                sigma (float): Standard deviation of the noise.
+                level (int): Current level of decomposition.
+                max_level (int): Maximum level of decomposition.
+                factor (float): Factor to apply to the threshold.
         """
         # Scale the threshold by detail level to provide adaptive thresholding
         level_factor = factor * (2 ** ((max_level - level) / 2))
@@ -326,6 +527,16 @@ class NonLinearDenoiser():
         return np.sign(data) * np.maximum(np.abs(data) - threshold, 0)
 
     def waveletShrinkage(self, img, wavelet='bior1.3', level=3, threshold_factor=3):
+
+        """
+            Apply wavelet shrinkage to a grayscale image.
+
+            Parameters:
+                img (np.array): Image to denoise.
+                wavelet (str): Wavelet to apply.
+                level (int): Level of decomposition.
+                threshold_factor (float): Factor to apply to the threshold.
+        """
         
         # Perform wavelet decomposition
         coeffs = pywt.wavedec2(img, wavelet, level)
@@ -348,7 +559,21 @@ class NonLinearDenoiser():
         return np.clip(denoised_image, 0, 255).astype(np.uint8)
 
 class NoiseMetric():
+
+    """
+        Class to calculate metrics related to image noise.
+    """
+
     def psnr(self, orig_img, denoised_img):
+
+        """
+            Calculate the Peak Signal-to-Noise Ratio (PSNR) between two images.
+
+            Parameters:
+                orig_img (np.array): Original image.
+                denoised_img (np.array): Denoised image.
+        """
+
         # Asegúrate de que las imágenes sean del mismo tamaño
         assert orig_img.shape == denoised_img.shape, "Las dimensiones de las imágenes deben coincidir"
         
@@ -361,58 +586,52 @@ class NoiseMetric():
         # Calculamos el PSNR en cada canal y luego promediamos
         psnr_value = 20 * log10(max_pixel / sqrt(np.mean(mse)))
         return psnr_value
-
-    def ssim(self, orig_img, denoised_img):
-        if len(orig_img.shape) == 3:  # If the image is colored (3 channels)
-            ssim_value = ssim(orig_img, denoised_img, win_size=3, multichannel=True)
-        else:  # For grayscale images
-            ssim_value = ssim(orig_img, denoised_img, win_size=3)
-        return ssim_value
     
 def denoiseOne(image_path, name):
+
+    """
+        Apply denoising to a single image.
+
+        Parameters:
+            image_path (str): Path to the image.
+            name (str): Name of the image.
+    """
+
     metrics = NoiseMetric()
 
     img = cv2.imread(image_path+name)
 
     denoiser = NonLinearDenoiser(img)
 
-    wavelet_denoised = denoiser.waveletShrinkage3D(img, wavelet='bior1.3', level=3, threshold_factor=0.75)
-    wav_median_denoised = denoiser.waveletShrinkage3D(cv2.medianBlur(img, 5), wavelet='bior1.3', level=3, threshold_factor=0.75)
-
-    wavelet_denoised = cv2.resize(wavelet_denoised, (img.shape[1], img.shape[0]))
+    wav_median_denoised = denoiser.waveletShrinkage3D(cv2.medianBlur(img, 5), wavelet='bior1.3', level=2, threshold_factor=0.25)
     wav_median_denoised = cv2.resize(wav_median_denoised, (img.shape[1], img.shape[0]))
-
-    wavelet_psnr = metrics.psnr(img, wavelet_denoised)
     wav_median_psnr = metrics.psnr(img, wav_median_denoised)
 
-    if wavelet_psnr > wav_median_psnr:
-        return wavelet_denoised
-    else:
-        return wav_median_denoised
+    return wav_median_denoised
     
-def denoiseAll(image_path):
+def denoiseAll(image_path, denoised_folder):
+
+    """
+        Apply denoising to all images in a folder.
+
+        Parameters:
+            image_path (str): Path to the folder with the images.
+            denoised_folder (str): Path to save the den
+    """
 
     metrics = NoiseMetric()
 
     for name in tqdm(os.listdir(image_path)):
         if name.endswith('.jpg'):
             img = cv2.imread(os.path.join(image_path, name))
+            img_orig = cv2.imread(os.path.join(image_path, 'non_augmented', name))
+
             denoiser = NonLinearDenoiser(img)
-            
-            wavelet_denoised = denoiser.waveletShrinkage3D(img, wavelet='bior1.3', level=3, threshold_factor=0.75)
-            wav_median_denoised = denoiser.waveletShrinkage3D(cv2.medianBlur(img, 5), wavelet='bior1.3', level=3, threshold_factor=0.75)
-
-            wavelet_denoised = cv2.resize(wavelet_denoised, (img.shape[1], img.shape[0]))
+            wav_median_denoised = denoiser.waveletShrinkage3D(cv2.medianBlur(img, 5), wavelet='bior1.3', level=2, threshold_factor=0.25)
             wav_median_denoised = cv2.resize(wav_median_denoised, (img.shape[1], img.shape[0]))
+            wav_median_psnr = metrics.psnr(img_orig, wav_median_denoised)
 
-            wavelet_psnr = metrics.psnr(img, wavelet_denoised)
-            wav_median_psnr = metrics.psnr(img, wav_median_denoised)
-
-            if wavelet_psnr > wav_median_psnr:
-                cv2.imwrite('./data/denoised_images/'+name, wavelet_denoised)
-
-            else:
-                cv2.imwrite('./data/denoised_images/'+name, wav_median_denoised)
+            cv2.imwrite(os.path.join(denoised_folder, name), wav_median_denoised)
 
     
 def test():
