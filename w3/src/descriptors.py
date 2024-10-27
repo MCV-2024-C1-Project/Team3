@@ -408,29 +408,52 @@ class TextureDescriptor:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) 
 
         if structure=='DCT':
-            
-            #image should be grayscale
             img=cv2.resize(image,(512,512))
-            m,n=np.shape(img)
-            coefs=[]
-            divided_img=self.block(img,[m/8,n/8])
-            for subimg in divided_img:
-                dct_block=self.dctn(subimg)
-                dct_coefs=self.zigzag(dct_block*255.0)
-                coefs.append(dct_coefs[:10])
+
+            #image should be grayscale
+            if len(np.shape(img))==3:
+                m,n,_=np.shape(img)
+                coefs=[]
+                divided_img=self.block(img,[m/8,n/8])
+                for subimg in divided_img:
+                    for ch in range(3):
+
+                        # print(np.shape(subimg[:,:,ch]))
+                        dct_block=self.dctn(subimg[:,:,ch])
+                        dct_coefs=self.zigzag(dct_block*255.0)
+                        coefs.append(dct_coefs[:10])
+            else:
+                m,n=np.shape(img)
+                coefs=[]
+                divided_img=self.block(img,[m/8,n/8])
+                for subimg in divided_img:
+                    dct_block=self.dctn(subimg)
+                    dct_coefs=self.zigzag(dct_block*255.0)
+                    coefs.append(dct_coefs[:10])
+
             return coefs
 
         elif structure=="LBP":
             n_points=8
             radius=2
             img=cv2.resize(image,(512,512))
-            m,n=np.shape(img)
-            histogram=[]
-            divided_img=self.block(img,[m/8,n/8])
-            for subimg in divided_img:
-                lbp = np.float32(local_binary_pattern(subimg, n_points, radius, 'uniform'))
-                hist= cv2.calcHist([lbp.flatten()],[0],None,[10],[0,10])/(m*n)
-                histogram.append(hist)
+            if len(np.shape(img))==3:
+                m,n,_=np.shape(img)
+                histogram=[]
+                divided_img=self.block(img,[m/8,n/8])
+                for subimg in divided_img:
+                    for ch in range(3):
+                        lbp = np.float32(local_binary_pattern(subimg[:,:,ch], n_points, radius, 'uniform'))
+                        hist= cv2.calcHist([lbp.flatten()],[0],None,[10],[0,10])/(m*n)
+                        histogram.append(hist)
+            else:
+                m,n=np.shape(img)
+                histogram=[]
+                divided_img=self.block(img,[m/8,n/8])
+                for subimg in divided_img:
+                    lbp = np.float32(local_binary_pattern(subimg, n_points, radius, 'uniform'))
+                    hist= cv2.calcHist([lbp.flatten()],[0],None,[10],[0,10])/(m*n)
+                    histogram.append(hist)
         
             return histogram
 
