@@ -12,6 +12,8 @@ This project implements a **Content Based Image Retrieval** system that searches
 3. [Weekly development](#weekly-development)
     - [Week 1: Image Retrieval Based on Color Histograms](#week-1-image-retrieval-based-on-color-histograms)
     - [Week 2: Background Removal and Advanced Descriptors](#week-2-background-removal-and-advanced-descriptors)
+    - [Week 3: Noise Filtering and Texture Descriptors](#week-3-noise-filtering-and-texture-descriptors)
+
 
 ---
 
@@ -144,3 +146,42 @@ Where:
 - `<measure>`: intersection, canberra, etc.
 
 This will run the Week 2 retrieval system with the specified configurations.
+
+---
+
+### Week 3: Noise Filtering and Texture Descriptors
+**Goal**: Enhance image retrieval accuracy by handling noise and color changes, and implementing texture descriptors.
+
+#### Tasks:
+1. **Task 1**: Filter noise in images.
+   - Implement linear or non-linear filters to address unknown noise in certain images. Show examples from QSD1-W3.
+   
+2. **Task 2**: Implement texture descriptors.
+   - Develop descriptors based on Local Binary Patterns (LBP), Discrete Cosine Transform (DCT), and others.
+   - Evaluate retrieval performance on QSD1-W3 using texture descriptors alone.
+
+3. **Task 3**: Detect paintings and remove background.
+   - For QSD2-W3, detect all paintings (up to 2 per image) and remove the background, creating a binary mask for evaluation.
+
+4. **Task 4**: Apply retrieval system with background removal.
+   - For QSD2-W3, detect paintings, remove background, apply the retrieval system, and return results, accommodating multiple paintings per image.
+
+#### To run the Week 3 system:
+```bash
+python src/main.py <folder_name> <structure> <colorspace> <mesure>
+```
+
+In this command:
+- `<folder_name>`: Folder with query images.
+- `<structure>`: Descriptor structure (options: "block", "DCT", "LBP", etc.).
+- `<colorspace>`: Histogram color space (options: "LAB", "gray", etc.).
+- `<mesure>`: Similarity measure (options: "euclidean", "intersection", etc.).
+
+Use DCT, LAB and euclidean to get the best results of this project:
+```bash
+ python src/main.py "qst2_w3" "DCT" "LAB" "euclidean"
+ ```
+
+This command runs the Week 3 system, incorporating noise filtering and texture descriptors for improved retrieval accuracy.
+
+--- 
