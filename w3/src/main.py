@@ -203,7 +203,6 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
                 img_top_K.append(top_k_numbers)
         
         top_K.append(img_top_K)
-    print(top_K)
     return top_K  # Return top K results (list of lists)
 
 
@@ -375,6 +374,5 @@ if __name__ == '__main__':
     _, mask = background_images(denoise_images)
     # After all masks have been applied and evaluated, process similarity with the background-removed images
     print("Processing similarity using method:", colorspace, "structure:", structure)
-    print(qsd_folder)
     process_similarity_measures(histograms, TextureDescriptor(colorspace), labels, quantization, structure, k_val=1, mask=cv2.bitwise_not(mask), measure=measure, method_folder=METHOD1_FOLDER, images_folder=denoise_images)
                 
