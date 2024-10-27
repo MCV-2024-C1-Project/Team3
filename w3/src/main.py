@@ -33,8 +33,8 @@ RESULTS_FOLDER = './results'
 
 BBDD_FOLDER = os.path.join(DATA_FOLDER, 'BBDD')
 
-QST1_W2_FOLDER = os.path.join(DATA_FOLDER, 'qst1_w2')
-QST2_W2_FOLDER = os.path.join(DATA_FOLDER, 'qst2_w1')
+QST1_W3_FOLDER = os.path.join(DATA_FOLDER, 'qst1_w3')
+QST2_W3_FOLDER = os.path.join(DATA_FOLDER, 'qst2_w3')
 QSD1_W3_FOLDER = os.path.join(DATA_FOLDER, 'qsd1_w3')
 QSD2_W3_FOLDER = os.path.join(DATA_FOLDER, 'qsd2_w3')
 NO_BG_FOLDER =  os.path.join(DATA_FOLDER, 'qsd2_w3_no_bg')
@@ -88,16 +88,11 @@ def kullback_leibler_divergence(p, q):
     filt = np.logical_and(p != 0, q != 0)
     return np.sum(p[filt] * np.log2(p[filt] / q[filt]))
 
-import random as rng
 
 def detect_pictures(image, mask):
     """Detect possible cuadros (regions of interest) in the image using contours."""
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    rng.seed(12345)
-
-
     cuadros = []
-    i=0
     for contour in contours: # Filter out small areas (noise)
         # x, y, w, h = cv2.boundingRect(contour)
         # cuadro = image[y:y+h, x:x+w]
@@ -156,7 +151,7 @@ def calculate_similarity(histograms, descriptor, labels, K, similarity_measure, 
                 pictures = [image]
 
         except Exception as e:
-            print(f"Error processing image {img}: {e}")
+            print(f"E processing image {img}: {e}")
             continue
         
         img_top_K = []
@@ -212,9 +207,12 @@ def process_similarity_measures(histograms, descriptor, labels, quantization, st
 
     if structure == 'DCT' or structure =="LBP" or structure == 'DCT_simple':
         
-        top_K = calculate_similarity(histograms, descriptor, labels, k_val, measure, quantization, structure, None, mask=mask, folder=images_folder)
-        map_k = mapk(labels, top_K, k_val)
-        print(f"mAP@{k_val} for quantization {quantization}, {structure}, {descriptor.color_space} and {measure}: {map_k}")
+        if labels is not None:
+            top_K = calculate_similarity(histograms, descriptor, labels, k_val, measure, quantization, structure, None, mask=mask, folder=images_folder)
+            map_k = mapk(labels, top_K, k_val)
+            print(f"mAP@{k_val} for quantization {quantization}, {structure}, {descriptor.color_space} and {measure}: {map_k}")
+        else:
+            top_K = calculate_similarity(histograms, descriptor, labels, k_val, measure, quantization, structure, None, mask=mask, folder=images_folder)
 
     if not os.path.exists(method_folder):
         os.makedirs(method_folder)
@@ -262,7 +260,7 @@ def compute_precision_recall_f1(ground_truth, predicted):
 def background_images(original_folder, qsd_folder):
     # Calculate background images
     final_image = None
-    if original_folder == QSD2_W3_FOLDER and qsd_folder == DENOISED_IMAGES:
+    if (original_folder == QSD2_W3_FOLDER or original_folder == QST2_W3_FOLDER) and qsd_folder == DENOISED_IMAGES:
         print("Removing background")
 
         if not os.path.exists(NO_BG_FOLDER):
@@ -315,7 +313,7 @@ def background_images(original_folder, qsd_folder):
                 cv2.imwrite(os.path.join(MASK_FOLDER, image_name.split('.')[0] + ".png"), final_image)
 
                 # Load ground truth and compute metrics if available
-                gt = cv2.imread(os.path.join(QSD2_W3_FOLDER, image_name[:-4] + ".png"), cv2.IMREAD_GRAYSCALE)
+                gt = cv2.imread(os.path.join(qsd_folder, image_name[:-4] + ".png"), cv2.IMREAD_GRAYSCALE)
                 if gt is not None:
                     intersection = np.logical_and(gt, final_image)
                     union = np.logical_or(gt, final_image)
@@ -350,6 +348,10 @@ if __name__ == '__main__':
         qsd_folder = QSD1_W3_FOLDER
     elif qsd_folder == 'qsd2_w3':
         qsd_folder = QSD2_W3_FOLDER
+    elif qsd_folder == 'qst1_w3':
+        qsd_folder = QST1_W3_FOLDER
+    elif qsd_folder == 'qst2_w3':
+        qsd_folder = QST2_W3_FOLDER
 
     if not os.path.exists(RESULTS_FOLDER):
         os.makedirs(RESULTS_FOLDER)
