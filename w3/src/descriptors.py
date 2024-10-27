@@ -28,13 +28,17 @@ class ImageDescriptor:
         if color_space not in self.COLOR_RANGES:
             raise ValueError(f"Unsupported color space: {color_space}")
 
+
     def block(self, image, nblocks):
+        """Divide an image into blocks"""
         divide1 = np.array_split(image, nblocks, axis=0)
         divide2 = [np.array_split(subimg, nblocks, axis=1) for subimg in divide1]
         subimgs = [img for row in divide2 for img in row]
         return subimgs
 
+
     def describe(self, image, dimension, structure, mask=None):
+        """Compute the histogram of an image"""
         if self.color_space == 'HLS':
             image = cv2.cvtColor(image, cv2.COLOR_BGR2HLS_FULL)
         elif self.color_space == 'HSV':
@@ -52,11 +56,8 @@ class ImageDescriptor:
             image2 = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
             image3 = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-
-
         ranges = self.COLOR_RANGES[self.color_space]
         if self.color_space=='combine':
-
             if structure == 'block' :
                 histograms = {}
                 for b in range(3):
@@ -111,6 +112,7 @@ class ImageDescriptor:
                                     hist.append(h3.flatten())
                     histograms[b] = {'histogram': np.concatenate(hist).flatten()}
                 return histograms
+            
             elif structure == 'heriarchical':
                 histograms = {}
                 hist = []
@@ -165,6 +167,7 @@ class ImageDescriptor:
                                     hist.append(h3.flatten())
                     histograms[b] = {'histogram': np.concatenate(hist).flatten()}
                 return histograms
+            
         else: 
             if structure == 'simple':
                 histograms = []
@@ -229,20 +232,20 @@ class ImageDescriptor:
             
 
     def save_histogram(self, hist, output_path):
-        #Create figure with 3 subplots
+        """Save the histogram as an image"""
         fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-        fig.tight_layout(h_pad=2,w_pad=5) #ensure no overlapping between subplot
+        fig.tight_layout(h_pad=2,w_pad=5) # Ensure no overlapping between subplot
 
         channel_names = self.CHANNEL_NAMES[self.color_space]
 
-        #Plot each histogram in a barplot
+        # Plot each histogram in a barplot
         for i, ax in enumerate(axes):
             ax.bar(np.arange(len(hist[i])), hist[i], color=['b', 'g', 'r'][i], edgecolor=['b', 'g', 'r'][i])
             ax.set_title(f'{channel_names[i]}')
         
         fig.suptitle(f'{self.color_space} Histogram')
 
-        plt.subplots_adjust(top=0.85) #Adjust spacing of figure title
+        plt.subplots_adjust(top=0.85) # Adjust spacing of figure title
 
         # fig.savefig(output_path,bbox_inches='tight') #store image
         plt.close()  # Close the figure to free up memory
@@ -258,27 +261,33 @@ class TextureDescriptor:
         'combine':[[0, 256], [0, 256], [0, 256]],
         'gray':[0,256]
     }
-    def __init__(self, color_space):
 
+    def __init__(self, color_space):
         self.color_space = color_space
 
         if color_space not in self.COLOR_RANGES:
             raise ValueError(f"Unsupported color space: {color_space}")
 
+
     def block(self, image, nblocks):
+        """Divide an image into blocks"""
         divide1 = np.array_split(image, nblocks[0], axis=0)
         divide2 = [np.array_split(subimg, nblocks[1], axis=1) for subimg in divide1]
         subimgs = [img for row in divide2 for img in row]
 
         return subimgs
     
+
     def dctn(self,x, norm="ortho"):
-        x=x-np.ones(np.shape(x))*128
+        """n-dimensional Discrete Cosine Transform"""
+        x = x - np.ones(np.shape(x)) * 128
         for i in range(x.ndim):
             x = dct(x, axis=i, norm=norm)
         return np.array(x)
 
+
     def quantize(self,dctresult):
+        """Quantize the DCT coefficients"""
         mat=np.array(
             [[16,11,10,16,24,40,51,61],
             [12,12,14,19,26,58,60,55],
@@ -292,21 +301,20 @@ class TextureDescriptor:
     
 
     def zigzag(self,input):
-        # Zigzag scan of a matrix
-        # Argument is a two-dimensional matrix of any size,
-        # not strictly a square one.
-        # Function returns a 1-by-(m*n) array,
-        # where m and n are sizes of an input matrix,
-        # consisting of its items scanned by a zigzag method.
-        #
-        # Matlab Code:
-        # Alexey S. Sokolov a.k.a. nICKEL, Moscow, Russia
-        # June 2007
-        # alex.nickel@gmail.com
-        
+        """Zigzag scan of a matrix
+        Argument is a two-dimensional matrix of any size,
+        not strictly a square one.
+        Function returns a 1-by-(m*n) array,
+        where m and n are sizes of an input matrix,
+        consisting of its items scanned by a zigzag method.
+
+        Matlab Code:
+        Alexey S. Sokolov a.k.a. nICKEL, Moscow, Russia
+        June 2007
+        alex.nickel@gmail.com
+        """
         
         #initializing the variables
-        #----------------------------------
         h = 0
         v = 0
 
@@ -316,82 +324,60 @@ class TextureDescriptor:
         vmax = input.shape[0]
         hmax = input.shape[1]
         
-        #print(vmax ,hmax )
-
         i = 0
 
         output = np.zeros(( vmax * hmax))
-        #----------------------------------
 
         while ((v < vmax) and (h < hmax)):
-            
             if ((h + v) % 2) == 0:                 # going up
-                
                 if (v == vmin):
-                    #print(1)
                     output[i] = input[v, h]        # if we got to the first line
-
                     if (h == hmax):
                         v = v + 1
                     else:
                         h = h + 1                        
-
                     i = i + 1
 
                 elif ((h == hmax -1 ) and (v < vmax)):   # if we got to the last column
-                    #print(2)
                     output[i] = input[v, h] 
                     v = v + 1
                     i = i + 1
 
                 elif ((v > vmin) and (h < hmax -1 )):    # all other cases
-                    #print(3)
                     output[i] = input[v, h] 
                     v = v - 1
                     h = h + 1
                     i = i + 1
-
             
             else:                                    # going down
-
                 if ((v == vmax -1) and (h <= hmax -1)):       # if we got to the last line
-                    #print(4)
                     output[i] = input[v, h] 
                     h = h + 1
                     i = i + 1
             
                 elif (h == hmin):                  # if we got to the first column
-                    #print(5)
                     output[i] = input[v, h] 
-
                     if (v == vmax -1):
                         h = h + 1
                     else:
                         v = v + 1
-
                     i = i + 1
 
                 elif ((v < vmax -1) and (h > hmin)):     # all other cases
-                    #print(6)
                     output[i] = input[v, h] 
                     v = v + 1
                     h = h - 1
                     i = i + 1
-
-
-
 
             if ((v == vmax-1) and (h == hmax-1)):          # bottom right element
                 #print(7)        	
                 output[i] = input[v, h] 
                 break
 
-        #print ('v:',v,', h:',h,', i:',i)
         return output
 
     def describe(self, image, structure, quantization):
-        # image = cv2.medianBlur(image, 3)
-
+        """Compute the texture descriptor of an image"""
         if self.color_space == 'HLS':
             image = cv2.cvtColor(image, cv2.COLOR_BGR2HLS_FULL)
         elif self.color_space == 'HSV':
@@ -417,8 +403,6 @@ class TextureDescriptor:
                 divided_img=self.block(img,[m/8,n/8])
                 for subimg in divided_img:
                     for ch in range(3):
-
-                        # print(np.shape(subimg[:,:,ch]))
                         dct_block=self.dctn(subimg[:,:,ch])
                         dct_coefs=self.zigzag(dct_block*255.0)
                         coefs.append(dct_coefs[:10])
