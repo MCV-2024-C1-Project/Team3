@@ -61,11 +61,15 @@ def load_database_images(descriptor_type):
         if data['descriptors'] is not None:
             keypoints = serializable_to_keypoints(data['keypoints'])
             descriptors = np.array(data['descriptors'], dtype=np.float32)  # Convertir lista a array numpy
-            image_paths.append(os.path.join(BBDD_FOLDER, filename))
-            database_keypoints.append(keypoints)
-            database_descriptors.append(descriptors)
+            
         else:
             print(f"No descriptors for {filename}")
+            keypoints = []  # Empty list for keypoints
+            descriptors = np.array([])  # Placeholder for no descriptors
+        
+        image_paths.append(os.path.join(BBDD_FOLDER, filename))
+        database_keypoints.append(keypoints)
+        database_descriptors.append(descriptors)
 
     return image_paths, database_keypoints, database_descriptors
 
@@ -76,6 +80,10 @@ def match_with_database(query_descriptors, database_descriptors, ratio_thresh=0.
     matches_per_image = []
     
     for db_des in database_descriptors:
+        if db_des.size == 0:  # Check if the descriptor array is empty
+            matches_per_image.append(0)  # Indicate no matches
+            continue
+        # Proceed with matching if descriptors are available
         matches = flann.knnMatch(query_descriptors, db_des, k=2)
         good_matches = [m for m, n in matches if m.distance < ratio_thresh * n.distance]
         matches_per_image.append(len(good_matches))
@@ -83,32 +91,58 @@ def match_with_database(query_descriptors, database_descriptors, ratio_thresh=0.
     return matches_per_image
 
 # Función principal que realiza la coincidencia con todas las imágenes de la carpeta
-def find_matches_in_database(query_image, descriptor, ratio_thresh=0.7, match_threshold=3):
-    # Obtener keypoints y descriptores de la imagen de consulta
+def find_matches_in_database(query_image, descriptor, ratio_thresh=0.7, match_threshold=3, top_k=10):
+    """
+    Function to find matches for the query image in the database and return top_k results.
+
+    Parameters:
+    - query_image: Query image.
+    - descriptor: The type of descriptor to use ("sift", "orb", "akaze").
+    - ratio_thresh: Threshold for Lowe's ratio test in feature matching.
+    - match_threshold: Minimum matches required to consider an image as a match.
+    - top_k: Number of top results to return.
+
+    Returns:
+    - List of top_k matches in the format [[index1, index2, ...], ...] or [[-1]] if no match.
+    """
+    # Obtain keypoints and descriptors for the query image
     display_image(query_image, "original")
     _, query_des = get_keypoints_descriptors(query_image, descriptor)
     if query_des is None:
-        print("No descriptors obtained")
-        return None, None
-    
-    # Cargar las imágenes de la base de datos y obtener sus keypoints y descriptores
+        # print("No descriptors obtained")
+        return [[-1]]
+
+    # Load the database images and get their keypoints and descriptors
     image_paths, db_keypoints, db_descriptors = load_database_images(descriptor)
-    
-    # Realizar el match entre la imagen de consulta y cada imagen en la base de datos
+
+    # Perform matching between query descriptors and each database image's descriptors
     match_counts = match_with_database(query_des, db_descriptors, ratio_thresh)
-    
+
+    # Collect matches and filter by threshold
     results = []
-    for path, count in zip(image_paths, match_counts):
+    for idx, (path, count) in enumerate(zip(image_paths, match_counts)):
         if count >= match_threshold:
-            results.append((path, count))  # Coincidencia válida
-            print(f"{path}: {count} coincidencias")
+            results.append((idx, count))  # Store index and count if it meets the threshold
+            # print(f"{path}: {count} coincidencias")
         else:
-            results.append((path, -1))  # Imagen desconocida ("unknown")
-            print(f"{path}: Unknown")
-        
-    return results
+            results.append((idx, -1))  # Mark as unknown
+            # print(f"{path}: -1")
+
+    # Sort results by match count in descending order, ignoring unknowns (-1)
+    sorted_results = sorted([r for r in results if r[1] != -1], key=lambda x: x[1], reverse=True)
+
+    # Extract the top_k results based on match count, or return [[-1]] if no valid matches
+    if sorted_results:
+        top_k_indices = [idx for idx, _ in sorted_results[:top_k]]
+    else:
+        top_k_indices = [-1]
+
+    print(f"Top {top_k} matches:", top_k_indices)
+    return [top_k_indices]
+
 
 if  __name__ == "__main__":
     # Cargar la imagen de consulta en escala de grises
-    image = cv2.imread('./data/qsd1_w4/00004.jpg', cv2.IMREAD_GRAYSCALE)
+    image = cv2.imread('./data/qsd1_w4/00001.jpg', cv2.IMREAD_GRAYSCALE)
     results = find_matches_in_database(image, "sift")
+    
