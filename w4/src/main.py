@@ -86,7 +86,7 @@ if __name__ == '__main__':
     if not os.path.exists(os.path.join(RESULTS_FOLDER, detector_type)):
         os.makedirs(os.path.join(RESULTS_FOLDER, detector_type))
 
-    keypoints_data = process_images(qsd_folder, detector_type)
+    keypoints_data = process_images(BBDD_FOLDER, detector_type)
     
     # Save keypoints and descriptors data with method-specific filename
     pkl_output_path = os.path.join(RESULTS_FOLDER, f'keypoints_{detector_type}.pkl')
