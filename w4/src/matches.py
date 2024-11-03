@@ -63,7 +63,7 @@ def load_database_images(descriptor_type):
             descriptors = np.array(data['descriptors'], dtype=np.float32)  # Convertir lista a array numpy
             
         else:
-            print(f"No descriptors for {filename}")
+            # print(f"No descriptors for {filename}")
             keypoints = []  # Empty list for keypoints
             descriptors = np.array([])  # Placeholder for no descriptors
         
@@ -106,7 +106,7 @@ def find_matches_in_database(query_image, descriptor, ratio_thresh=0.7, match_th
     - List of top_k matches in the format [[index1, index2, ...], ...] or [[-1]] if no match.
     """
     # Obtain keypoints and descriptors for the query image
-    display_image(query_image, "original")
+    # display_image(query_image, "original")
     _, query_des = get_keypoints_descriptors(query_image, descriptor)
     if query_des is None:
         # print("No descriptors obtained")
