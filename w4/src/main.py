@@ -365,4 +365,5 @@ if __name__ == '__main__':
     background_images(qsd_folder, final_folder)
     print("Processing similarity using method:", detector_type)
     process_similarity_measures(detector_type, labels, k_val=1, method_folder=METHOD1_FOLDER, images_folder=final_folder)
+    process_similarity_measures(detector_type, labels, k_val=5, method_folder=METHOD1_FOLDER, images_folder=final_folder)
      

@@ -91,7 +91,7 @@ def match_with_database(query_descriptors, database_descriptors, ratio_thresh=0.
     return matches_per_image
 
 # Función principal que realiza la coincidencia con todas las imágenes de la carpeta
-def find_matches_in_database(query_image, descriptor, ratio_thresh=0.7, match_threshold=5, top_k=10):
+def find_matches_in_database(query_image, descriptor, ratio_thresh=0.8, match_threshold=20, top_k=10):
     """
     Function to find matches for the query image in the database and return top_k results.
 
@@ -116,37 +116,36 @@ def find_matches_in_database(query_image, descriptor, ratio_thresh=0.7, match_th
     image_paths, db_keypoints, db_descriptors = load_database_images(descriptor)
     
     # # Ensure descriptor types are compatible
-    # if descriptor == "akaze" or descriptor == "orb":
-    #     # AKAZE and ORB descriptors are binary, ensure they are in uint8 format
-    #     if query_des.dtype != np.uint8:
-    #         query_des = query_des.astype(np.uint8)
-    #     db_descriptors = [des.astype(np.uint8) for des in db_descriptors if des is not None]
-    #     bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
-    # else:  # Use FLANN for SIFT which produces float32 descriptors
-    #     if query_des.dtype != np.float32:
-    #         query_des = query_des.astype(np.float32)
-    #     db_descriptors = [des.astype(np.float32) for des in db_descriptors if des is not None]
-    #     index_params = dict(algorithm=1, trees=5)
-    #     search_params = dict(checks=50)
-    #     bf = cv2.FlannBasedMatcher(index_params, search_params)
+    if descriptor == "akaze" or descriptor == "orb":
+        # AKAZE and ORB descriptors are binary, ensure they are in uint8 format
+        if query_des.dtype != np.uint8:
+            query_des = query_des.astype(np.uint8)
+        db_descriptors = [des.astype(np.uint8) for des in db_descriptors if des is not None]
+        bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
+    else:  # Use FLANN for SIFT which produces float32 descriptors
+        if query_des.dtype != np.float32:
+            query_des = query_des.astype(np.float32)
+        db_descriptors = [des.astype(np.float32) for des in db_descriptors if des is not None]
+        index_params = dict(algorithm=1, trees=5)
+        search_params = dict(checks=50)
+        bf = cv2.FlannBasedMatcher(index_params, search_params)
     # Perform matching between query descriptors and each database image's descriptors
 
-    # Perform matching between query descriptors and each database image's descriptors
-    # match_counts = []
-    # for des in db_descriptors:
-    #     if des is None or len(des) < 5:
-    #         match_counts.append(0)
-    #         continue
+    match_counts = []
+    for des in db_descriptors:
+        if des is None or len(des) < 5:
+            match_counts.append(0)
+            continue
         
-    #     # Perform KNN matching
-    #     matches = bf.knnMatch(query_des, des, k=2)
-    #     good_matches = []
-    #     for m, n in matches:
-    #         if m.distance < ratio_thresh * n.distance:
-    #             good_matches.append(m)
+        # Perform KNN matching
+        matches = bf.knnMatch(query_des, des, k=2)
+        good_matches = []
+        for m, n in matches:
+            if m.distance < ratio_thresh * n.distance:
+                good_matches.append(m)
         
-    #     match_counts.append(len(good_matches))
-    match_counts = match_with_database(query_des, db_descriptors, ratio_thresh)
+        match_counts.append(len(good_matches))
+    # match_counts = match_with_database(query_des, db_descriptors, ratio_thresh)
 
     # Collect matches and filter by threshold
     results = []
