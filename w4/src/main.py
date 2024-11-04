@@ -209,19 +209,42 @@ def background_images(qsd_folder, denoised):
 def detect_pictures(image, mask):
     """Detect possible cuadros (regions of interest) in the image using contours."""
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
+
     cuadros = []
-    for contour in contours: # Filter out small areas (noise)
+    for contour in contours:  # Filter out small areas (noise)
         x, y, w, h = cv2.boundingRect(contour)
         cuadro = image[y:y+h, x:x+w]
-        
-        cuadros.append(cuadro)  # Append the cleaned cuadro
-        
-        # # Mostrar cada cuadro detectado
-        # cv2.imshow('Cuadro Detectado', pict)
-        # cv2.waitKey(0)  # Pausa hasta que presiones una tecla
-    
-    return cuadros
+        cuadros.append((x, y, cuadro))
+
+    # Determinar la disposición de las zonas blancas en la máscara
+    # Extraemos las coordenadas de los cuadros
+    coords = [(x, y) for x, y, _ in cuadros]
+
+    # Comprobar la disposición de las coordenadas
+    if len(coords) < 2:
+        # No hay suficiente información para determinar la disposición
+        return [cuadro for _, _, cuadro in cuadros]
+
+    # Calcular la diferencia en las coordenadas y
+    diffs_y = [y for x, y in coords]
+    diffs_x = [x for x, y in coords]
+
+    # Calcular el rango y la media de las diferencias
+    range_y = max(diffs_y) - min(diffs_y)
+    range_x = max(diffs_x) - min(diffs_x)
+
+    # Determinar si la disposición es más horizontal o vertical
+    if range_x > range_y:
+        # Ordenar de izquierda a derecha (horizontal)
+        cuadros.sort(key=lambda item: item[0])  # Ordenar por coordenada x
+    else:
+        # Ordenar de arriba a abajo (vertical)
+        cuadros.sort(key=lambda item: item[1])  # Ordenar por coordenada y
+
+    # Extraer solo las imágenes de los cuadros, sin las coordenadas
+    cuadros_finales = [cuadro for _, _, cuadro in cuadros]
+
+    return cuadros_finales
     
 def calculate_similarity(descriptor, K, folder):
     """Calculate mAP@K for a given similarity measure and descriptor."""

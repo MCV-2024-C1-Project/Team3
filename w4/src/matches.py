@@ -91,7 +91,7 @@ def match_with_database(query_descriptors, database_descriptors, ratio_thresh=0.
     return matches_per_image
 
 # Función principal que realiza la coincidencia con todas las imágenes de la carpeta
-def find_matches_in_database(query_image, descriptor, ratio_thresh=0.7, match_threshold=3, top_k=10):
+def find_matches_in_database(query_image, descriptor, ratio_thresh=0.7, match_threshold=5, top_k=10):
     """
     Function to find matches for the query image in the database and return top_k results.
 
@@ -105,17 +105,47 @@ def find_matches_in_database(query_image, descriptor, ratio_thresh=0.7, match_th
     Returns:
     - List of top_k matches in the format [[index1, index2, ...], ...] or [[-1]] if no match.
     """
-    # Obtain keypoints and descriptors for the query image
-    # display_image(query_image, "original")
+    if query_image.shape[0] > 2000 or query_image.shape[1] > 2000:
+        print("resize")
+        query_image = cv2.resize(query_image, (int(query_image.shape[1] / 2), int(query_image.shape[0] / 2)))
     _, query_des = get_keypoints_descriptors(query_image, descriptor)
     if query_des is None:
-        # print("No descriptors obtained")
         return [[-1]]
 
     # Load the database images and get their keypoints and descriptors
     image_paths, db_keypoints, db_descriptors = load_database_images(descriptor)
+    
+    # # Ensure descriptor types are compatible
+    # if descriptor == "akaze" or descriptor == "orb":
+    #     # AKAZE and ORB descriptors are binary, ensure they are in uint8 format
+    #     if query_des.dtype != np.uint8:
+    #         query_des = query_des.astype(np.uint8)
+    #     db_descriptors = [des.astype(np.uint8) for des in db_descriptors if des is not None]
+    #     bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
+    # else:  # Use FLANN for SIFT which produces float32 descriptors
+    #     if query_des.dtype != np.float32:
+    #         query_des = query_des.astype(np.float32)
+    #     db_descriptors = [des.astype(np.float32) for des in db_descriptors if des is not None]
+    #     index_params = dict(algorithm=1, trees=5)
+    #     search_params = dict(checks=50)
+    #     bf = cv2.FlannBasedMatcher(index_params, search_params)
+    # Perform matching between query descriptors and each database image's descriptors
 
     # Perform matching between query descriptors and each database image's descriptors
+    # match_counts = []
+    # for des in db_descriptors:
+    #     if des is None or len(des) < 5:
+    #         match_counts.append(0)
+    #         continue
+        
+    #     # Perform KNN matching
+    #     matches = bf.knnMatch(query_des, des, k=2)
+    #     good_matches = []
+    #     for m, n in matches:
+    #         if m.distance < ratio_thresh * n.distance:
+    #             good_matches.append(m)
+        
+    #     match_counts.append(len(good_matches))
     match_counts = match_with_database(query_des, db_descriptors, ratio_thresh)
 
     # Collect matches and filter by threshold
@@ -123,10 +153,8 @@ def find_matches_in_database(query_image, descriptor, ratio_thresh=0.7, match_th
     for idx, (path, count) in enumerate(zip(image_paths, match_counts)):
         if count >= match_threshold:
             results.append((idx, count))  # Store index and count if it meets the threshold
-            # print(f"{path}: {count} coincidencias")
         else:
             results.append((idx, -1))  # Mark as unknown
-            # print(f"{path}: -1")
 
     # Sort results by match count in descending order, ignoring unknowns (-1)
     sorted_results = sorted([r for r in results if r[1] != -1], key=lambda x: x[1], reverse=True)
@@ -137,12 +165,12 @@ def find_matches_in_database(query_image, descriptor, ratio_thresh=0.7, match_th
     else:
         top_k_indices = [-1]
 
-    # print(f"Top {top_k} matches:", top_k_indices)
+    print(f"Top {top_k} matches:", top_k_indices)
     return [top_k_indices]
 
 
 if  __name__ == "__main__":
     # Cargar la imagen de consulta en escala de grises
-    image = cv2.imread('./data/qsd1_w4/00001.jpg', cv2.IMREAD_GRAYSCALE)
-    results = find_matches_in_database(image, "sift")
+    image = cv2.imread('./data/qsd1_w4/00026.jpg', cv2.IMREAD_GRAYSCALE)
+    results = find_matches_in_database(image, "akaze")
     
