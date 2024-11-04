@@ -137,7 +137,7 @@ def find_matches_in_database(query_image, descriptor, ratio_thresh=0.7, match_th
     else:
         top_k_indices = [-1]
 
-    print(f"Top {top_k} matches:", top_k_indices)
+    # print(f"Top {top_k} matches:", top_k_indices)
     return [top_k_indices]
 
 

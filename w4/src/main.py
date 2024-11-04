@@ -31,6 +31,11 @@ GT_CORRESPS_FILE = os.path.join(DATA_FOLDER, qsd_folder , 'gt_corresps.pkl')
 
 METHOD1_FOLDER = os.path.join(RESULTS_FOLDER, 'method1')  # Output folder for method1
 
+QSD1_W4_FOLDER = os.path.join(DATA_FOLDER, 'qsd1_w4')
+QST1_W4_FOLDER = os.path.join(DATA_FOLDER, 'qst1_w4')
+
+DENOISED_IMAGES_1 = os.path.join(DATA_FOLDER, 'denoised_images_1')
+DENOISED_IMAGES_TEST_1 = os.path.join(DATA_FOLDER, 'denoised_images_test_1')
 
 def keypoints_to_serializable(keypoints):
     """Convert cv2.KeyPoint objects to a serializable format."""
@@ -120,7 +125,7 @@ def compute_precision_recall_f1(ground_truth, predicted):
     
     return precision, recall, f1_score
 
-def background_images(qsd_folder):
+def background_images(qsd_folder, denoised):
     # Calculate background images
     final_image = None
     print("Removing background")
@@ -131,19 +136,19 @@ def background_images(qsd_folder):
     recalls = []
     f1s = []
 
-    for image_name in os.listdir(qsd_folder):
+    for image_name in os.listdir(denoised):
         if image_name.endswith(".jpg"):
-            image = cv2.imread(os.path.join(qsd_folder, image_name))
+            image = cv2.imread(os.path.join(denoised, image_name))
             if image is None:
                 print(f"Error loading image {image_name}")
                 continue
 
             # Apply denoising
-            linear_denoiser = LinearDenoiser(image)
-            denoise_image = linear_denoiser.medianFilter(3)
+            # linear_denoiser = LinearDenoiser(image)
+            # denoise_image = linear_denoiser.medianFilter(5)
             
             # Initialize background removal process
-            background = CalculateBackground(denoise_image)
+            background = CalculateBackground(image)
             mask_contours = background.process_frames()
             
             # Perform final morphological operations to clean up the mask
@@ -153,7 +158,7 @@ def background_images(qsd_folder):
             contours, _ = cv2.findContours(cleaned_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             
             # Filter contours by a minimum area
-            large_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 10000]
+            large_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 30000]
             
             # Sort contours by area in descending order
             large_contours = sorted(large_contours, key=cv2.contourArea, reverse=True)
@@ -170,7 +175,7 @@ def background_images(qsd_folder):
             if not os.path.exists(MASK_FOLDER):
                 os.makedirs(MASK_FOLDER)
             cv2.imwrite(os.path.join(MASK_FOLDER, image_name.split('.')[0] + ".png"), final_image)
-            print("mask saved to", {os.path.join(MASK_FOLDER, image_name.split('.')[0] + ".png")})
+            # print("mask saved to", {os.path.join(MASK_FOLDER, image_name.split('.')[0] + ".png")})
             # Load ground truth and compute metrics if available
             gt_path = os.path.join(qsd_folder, image_name[:-4] + ".png")
             if os.path.exists(gt_path):
@@ -204,38 +209,18 @@ def background_images(qsd_folder):
 def detect_pictures(image, mask):
     """Detect possible cuadros (regions of interest) in the image using contours."""
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
     cuadros = []
     for contour in contours: # Filter out small areas (noise)
-        # x, y, w, h = cv2.boundingRect(contour)
-        # cuadro = image[y:y+h, x:x+w]
-
-        epsilon = 0.1*cv2.arcLength(contour,True)
-        pp = cv2.approxPolyDP(contour,epsilon,True)  
-        p=np.array([[pp[0][0][0],pp[0][0][1]],[pp[1][0][0],pp[1][0][1]],[pp[2][0][0],pp[2][0][1]],[pp[3][0][0],pp[3][0][1]]])
-        # Sort the points by y-coordinate (top to bottom)
-        points = p[np.argsort(p[:, 1])]
+        x, y, w, h = cv2.boundingRect(contour)
+        cuadro = image[y:y+h, x:x+w]
         
-        # Separate the points into top and bottom halves
-        top_points = points[:2]
-        bottom_points = points[2:]
-        
-        # Sort the top points by x-coordinate (left to right) to get upper-left and upper-right
-        top_left, top_right = top_points[np.argsort(top_points[:, 0])]
-        
-        # Sort the bottom points by x-coordinate (left to right) to get lower-left and lower-right
-        bottom_left, bottom_right = bottom_points[np.argsort(bottom_points[:, 0])]
-        
-        # Arrange the points in the desired order
-        ordered_points = np.array([top_left, bottom_left, top_right, bottom_right])
-            
-        rows, cols= [512,512]
-        pts1=np.float32(np.array([[0,0],[0,rows],[cols,0],[cols,rows]]))
-        pts2=np.float32(ordered_points)
-        M = cv2.getPerspectiveTransform(pts2, pts1)
-        transform=np.array(M,dtype=np.float32)
-        cuadro = cv2.warpPerspective(image, transform, (cols, rows))
         cuadros.append(cuadro)  # Append the cleaned cuadro
-
+        
+        # # Mostrar cada cuadro detectado
+        # cv2.imshow('Cuadro Detectado', pict)
+        # cv2.waitKey(0)  # Pausa hasta que presiones una tecla
+    
     return cuadros
     
 def calculate_similarity(descriptor, K, folder):
@@ -269,6 +254,9 @@ def calculate_similarity(descriptor, K, folder):
 
         # Process each region of interest (picture) using find_matches_in_database
         for pict in pictures:
+            print(image_path)
+            # cv2.imshow(image_path, pict)
+            # cv2.waitKey(0)
             try:
                 # Use find_matches_in_database instead of calculating similarity directly
                 matches = find_matches_in_database(
@@ -311,6 +299,19 @@ def process_similarity_measures(descriptor, labels, k_val, method_folder, images
      
 
 if __name__ == '__main__':
+    if qsd_folder == 'qsd1_w4':
+        qsd_folder = QSD1_W4_FOLDER
+        denoised_images = DENOISED_IMAGES_1
+    elif qsd_folder == 'qsd2_w3':
+        qsd_folder = QST1_W4_FOLDER
+        denoised_images = DENOISED_IMAGES_TEST_1
+        
+    if not os.path.exists(denoised_images):
+        os.makedirs(denoised_images)
+        
+    if len(os.listdir(denoised_images)) == 0:
+        denoiseAll(qsd_folder, denoised_images)
+        
     if not os.path.exists(RESULTS_FOLDER):
         os.makedirs(RESULTS_FOLDER)
     
@@ -336,8 +337,9 @@ if __name__ == '__main__':
 
     # Process QSD images and compute similarity
     
-    final_folder = os.path.join(DATA_FOLDER, qsd_folder)
-    background_images(final_folder)
+    final_folder = denoised_images
+    print(final_folder)
+    background_images(qsd_folder, final_folder)
     print("Processing similarity using method:", detector_type)
     process_similarity_measures(detector_type, labels, k_val=1, method_folder=METHOD1_FOLDER, images_folder=final_folder)
      
