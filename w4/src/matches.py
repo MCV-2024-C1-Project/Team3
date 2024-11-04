@@ -91,7 +91,7 @@ def match_with_database(query_descriptors, database_descriptors, ratio_thresh=0.
     return matches_per_image
 
 # Función principal que realiza la coincidencia con todas las imágenes de la carpeta
-def find_matches_in_database(query_image, descriptor, ratio_thresh=0.8, match_threshold=20, top_k=10):
+def find_matches_in_database(query_image, descriptor, ratio_thresh=0.7, match_threshold=20, top_k=10):
     """
     Function to find matches for the query image in the database and return top_k results.
 
