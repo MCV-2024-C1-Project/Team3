@@ -265,10 +265,6 @@ def calculate_similarity(descriptor, K, folder):
             # if mask is not None:
             mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
             pictures = detect_pictures(image, mask)  # Detect pictures (regions of interest)
-
-            # else:
-            # pictures = [image]
-
         except Exception as e:
             print(f"E processing image {img}: {e}")
             continue
@@ -278,25 +274,22 @@ def calculate_similarity(descriptor, K, folder):
         # Process each region of interest (picture) using find_matches_in_database
         for pict in pictures:
             print(image_path)
-            # cv2.imshow(image_path, pict)
-            # cv2.waitKey(0)
-            try:
-                # Use find_matches_in_database instead of calculating similarity directly
-                matches = find_matches_in_database(
-                    query_image=pict,
-                    descriptor=descriptor,
-                    top_k=K
-                )
-                # Append the top matches for this picture to img_top_K
-                img_top_K.extend(matches)
 
-            except Exception as e:
-                print(f"Error processing region in image {img}: {e}")
-                continue
+            # Use find_matches_in_database instead of calculating similarity directly
+            matches = find_matches_in_database(
+                query_image=pict,
+                descriptor=descriptor,
+                top_k=K
+            )
+            # Ensure that matches is a list before extending
+            if isinstance(matches, list):
+                img_top_K.extend(matches)
+            else:
+                print(f"Unexpected result from find_matches_in_database for image {img}: {matches}")
+
         
         top_K.append(img_top_K)
     
-    # print(top_K)
     return top_K  # Return top K results (list of lists)
 
 

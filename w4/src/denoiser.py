@@ -6,6 +6,8 @@ from math import log10, sqrt
 from skimage.metrics import structural_similarity as ssim
 from tqdm import tqdm
 import bm3d
+import math
+from scipy.signal import convolve2d
 
 class LinearDenoiser():
     def __init__(self, image):
@@ -369,6 +371,19 @@ class NoiseMetric():
             ssim_value = ssim(orig_img, denoised_img, win_size=3)
         return ssim_value
     
+def estimate_noise(I):
+
+    H, W = I.shape
+
+    M = [[1, -2, 1],
+        [-2, 4, -2],
+        [1, -2, 1]]
+
+    sigma = np.sum(np.sum(np.absolute(convolve2d(I, M))))
+    sigma = sigma * math.sqrt(0.5 * math.pi) / (6 * (W-2) * (H-2))
+
+    return sigma
+    
 def denoiseOne(image_path, name):
     metrics = NoiseMetric()
 
@@ -397,19 +412,18 @@ def denoiseAll(image_path, denoised_path):
     for name in tqdm(os.listdir(image_path)):
         if name.endswith('.jpg'):
             img = cv2.imread(os.path.join(image_path, name))
+            grayImage = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
             denoiser = NonLinearDenoiser(img)
-            
-            wavelet_denoised = denoiser.waveletShrinkage3D(img, wavelet='bior1.3', level=3, threshold_factor=0.75)
+
             wav_median_denoised = denoiser.waveletShrinkage3D(cv2.medianBlur(img, 5), wavelet='bior1.3', level=3, threshold_factor=0.75)
 
-            wavelet_denoised = cv2.resize(wavelet_denoised, (img.shape[1], img.shape[0]))
             wav_median_denoised = cv2.resize(wav_median_denoised, (img.shape[1], img.shape[0]))
 
-            wavelet_psnr = metrics.psnr(img, wavelet_denoised)
-            wav_median_psnr = metrics.psnr(img, wav_median_denoised)
+            noiseLevel = estimate_noise(grayImage)
 
-            if wavelet_psnr > wav_median_psnr:
-                cv2.imwrite(os.path.join(denoised_path, name), wavelet_denoised)
+            if noiseLevel < 10:
+                cv2.imwrite(os.path.join(denoised_path, name), img)
 
             else:
                 cv2.imwrite(os.path.join(denoised_path, name), wav_median_denoised)

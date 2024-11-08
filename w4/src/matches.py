@@ -90,47 +90,63 @@ def match_with_database(query_descriptors, database_descriptors, ratio_thresh=0.
     
     return matches_per_image
 
-# Función principal que realiza la coincidencia con todas las imágenes de la carpeta
-def find_matches_in_database(query_image, descriptor, ratio_thresh=0.7, match_threshold=20, top_k=10):
+# Main function to match a query image against a database of images
+def find_matches_in_database(query_image, descriptor="akaze", ratio_thresh=0.7, match_threshold=20, top_k=10):
     """
     Function to find matches for the query image in the database and return top_k results.
-
-    Parameters:
-    - query_image: Query image.
-    - descriptor: The type of descriptor to use ("sift", "orb", "akaze").
-    - ratio_thresh: Threshold for Lowe's ratio test in feature matching.
-    - match_threshold: Minimum matches required to consider an image as a match.
-    - top_k: Number of top results to return.
-
-    Returns:
-    - List of top_k matches in the format [[index1, index2, ...], ...] or [[-1]] if no match.
     """
+    # Resize if image is too large
     if query_image.shape[0] > 2000 or query_image.shape[1] > 2000:
         print("resize")
         query_image = cv2.resize(query_image, (int(query_image.shape[1] / 2), int(query_image.shape[0] / 2)))
-    _, query_des = get_keypoints_descriptors(query_image, descriptor)
-    if query_des is None:
-        return [[-1]]
 
+    # Get keypoints and descriptors of the query image
+    query_keypoints, query_des = get_keypoints_descriptors(query_image, descriptor)
+    
+    if query_des is None or len(query_keypoints) == 0:
+        print("No descriptors found for query image")
+        return [[-1]]  # If no descriptors are found, return no match
+    
     # Load the database images and get their keypoints and descriptors
     image_paths, db_keypoints, db_descriptors = load_database_images(descriptor)
-    
-    # # Ensure descriptor types are compatible
-    if descriptor == "akaze" or descriptor == "orb":
-        # AKAZE and ORB descriptors are binary, ensure they are in uint8 format
-        if query_des.dtype != np.uint8:
-            query_des = query_des.astype(np.uint8)
-        db_descriptors = [des.astype(np.uint8) for des in db_descriptors if des is not None]
-        bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
-    else:  # Use FLANN for SIFT which produces float32 descriptors
+
+    # Ensure keypoints and descriptors are being returned from the database
+
+    # FLANN matching setup for AKAZE or ORB (binary descriptors)
+    if descriptor in "akaze":
         if query_des.dtype != np.float32:
             query_des = query_des.astype(np.float32)
         db_descriptors = [des.astype(np.float32) for des in db_descriptors if des is not None]
-        index_params = dict(algorithm=1, trees=5)
+
+        # FLANN setup for binary descriptors
+        index_params = dict(algorithm=2, branching=8, iterations=50)
+
         search_params = dict(checks=50)
         bf = cv2.FlannBasedMatcher(index_params, search_params)
-    # Perform matching between query descriptors and each database image's descriptors
+    elif descriptor in "orb":
+        if query_des.dtype != np.uint8:
+            query_des = query_des.astype(np.uint8)
+        db_descriptors = [des.astype(np.uint8) for des in db_descriptors if des is not None]
 
+        FLANN_INDEX_LSH = 6
+        index_params= dict(algorithm = FLANN_INDEX_LSH,
+                   table_number = 6, # 12
+                   key_size = 6,     # 20
+                   multi_probe_level = 2) #2
+        search_params = dict(checks=100)
+        bf = cv2.FlannBasedMatcher(index_params, search_params)
+    else:
+        if query_des.dtype != np.float32:
+            query_des = query_des.astype(np.float32)
+        db_descriptors = [des.astype(np.float32) for des in db_descriptors if des is not None]
+
+        # FLANN setup for binary descriptors
+        index_params = dict(algorithm=2, branching=8, iterations=50)
+
+        search_params = dict(checks=50)
+        bf = cv2.FlannBasedMatcher(index_params, search_params)
+
+    # Perform matching between query descriptors and each database image's descriptors
     match_counts = []
     for des in db_descriptors:
         if des is None or len(des) < 5:
@@ -138,35 +154,33 @@ def find_matches_in_database(query_image, descriptor, ratio_thresh=0.7, match_th
             continue
         
         # Perform KNN matching
+        # Perform KNN matching
         matches = bf.knnMatch(query_des, des, k=2)
         good_matches = []
-        for m, n in matches:
-            if m.distance < ratio_thresh * n.distance:
-                good_matches.append(m)
-        
+        for match in matches:
+            if len(match) >= 2:
+                m, n = match
+                if m.distance < 0.7 * n.distance:
+                    good_matches.append(m)
         match_counts.append(len(good_matches))
-    # match_counts = match_with_database(query_des, db_descriptors, ratio_thresh)
-
     # Collect matches and filter by threshold
     results = []
     for idx, (path, count) in enumerate(zip(image_paths, match_counts)):
         if count >= match_threshold:
-            results.append((idx, count))  # Store index and count if it meets the threshold
+            results.append((idx, count))  
         else:
-            results.append((idx, -1))  # Mark as unknown
+            results.append((idx, -1))
+
 
     # Sort results by match count in descending order, ignoring unknowns (-1)
     sorted_results = sorted([r for r in results if r[1] != -1], key=lambda x: x[1], reverse=True)
 
+
     # Extract the top_k results based on match count, or return [[-1]] if no valid matches
-    if sorted_results:
-        top_k_indices = [idx for idx, _ in sorted_results[:top_k]]
-    else:
-        top_k_indices = [-1]
+    top_k_indices = [idx for idx, _ in sorted_results[:top_k]] if sorted_results else [-1]
 
     print(f"Top {top_k} matches:", top_k_indices)
     return [top_k_indices]
-
 
 if  __name__ == "__main__":
     # Cargar la imagen de consulta en escala de grises
