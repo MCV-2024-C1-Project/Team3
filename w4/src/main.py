@@ -5,17 +5,19 @@ import cv2
 import numpy as np
 import pickle
 import argparse
-from keypoints import akaze_detector, orb_detector, sift_detector
+from keypoints import akaze_detector, orb_detector, sift_detector, surf_detector
 from denoiser import denoiseAll, LinearDenoiser
 from background_removal import CalculateBackground
 from similarity import ComputeSimilarity
 from matches import find_matches_in_database
 from evaluation.average_precision import mapk
+from sklearn.metrics import f1_score
+from tqdm import tqdm
 
 # Argument parser setup
 parser = argparse.ArgumentParser(description='Process image folder for keypoints detection.')
 parser.add_argument('images_folder', type=str, help='Path to the image folder (e.g., ./data/qsd1_w4)')
-parser.add_argument('detector', type=str, help='Keypoint detector to use (e.g., harris, orb, sift)')
+parser.add_argument('detector', type=str, help='Keypoint detector to use (e.g., harris, orb, sift, surf)')
 args = parser.parse_args()
 
 # Define input folder based on argument
@@ -48,7 +50,6 @@ def keypoints_to_serializable(keypoints):
         'class_id': kp.class_id     # ID of the keypoint
     } for kp in keypoints]
 
-
 def detect_keypoints(detector_type, image):
     """Detect keypoints based on the selected detector type."""
     if detector_type == 'akaze':
@@ -57,9 +58,10 @@ def detect_keypoints(detector_type, image):
         return orb_detector(image)
     elif detector_type == 'sift':
         return sift_detector(image)
+    elif detector_type == 'surf':
+        return surf_detector(image)
     else:
         raise ValueError(f"Detector type {detector_type} not recognized.")
-
 
 def process_images(folder_path, detector_type):
     """Process each image in the folder to detect keypoints and descriptors."""
@@ -154,22 +156,28 @@ def background_images(qsd_folder, denoised):
             # Perform final morphological operations to clean up the mask
             cleaned_mask = background.morphological_operations_cleanse(mask_contours)
             
-            # Find all contours in the mask
+            # Find contours in the binary mask
             contours, _ = cv2.findContours(cleaned_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            # Filter contours by a minimum area
+
             large_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 30000]
-            
+
             # Sort contours by area in descending order
             large_contours = sorted(large_contours, key=cv2.contourArea, reverse=True)
             
             # Select only the largest contours (e.g., the 2 largest ones)
             largest_contours = large_contours[:2]
-            
-            # Create a new mask with only the selected contours
-            final_image = np.zeros(cleaned_mask.shape, dtype=np.uint8)
-            for cnt in largest_contours:
-                cv2.drawContours(final_image, [cnt], -1, 255, thickness=cv2.FILLED)
+
+            # Create a blank mask to draw the cleaned rectangles
+            cleaned_mask = np.zeros_like(cleaned_mask)
+
+            # Loop through contours and draw rectangular bounding boxes
+            for contour in largest_contours:
+                # Get bounding box for each contour
+                x, y, w, h = cv2.boundingRect(contour)
+                # Draw the rectangle on the cleaned mask
+                cv2.rectangle(cleaned_mask, (x, y), (x + w, y + h), 255, thickness=cv2.FILLED)
+
+            final_image = cleaned_mask
 
             # Save the mask to MASK_FOLDER
             if not os.path.exists(MASK_FOLDER):
@@ -249,46 +257,53 @@ def detect_pictures(image, mask):
 def calculate_similarity(descriptor, K, folder):
     """Calculate mAP@K for a given similarity measure and descriptor."""
     measures = ComputeSimilarity()
-    top_K = []
+    for ratio in tqdm([0.4, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0]):
+        top_K = []
 
-    for img in sorted(os.listdir(folder)):
-        image_path = os.path.join(folder, img)
-        mask_path = os.path.join(MASK_FOLDER, img.split('.')[0] + ".png")
+        for img in sorted(os.listdir(folder)):
+            image_path = os.path.join(folder, img)
+            mask_path = os.path.join(MASK_FOLDER, img.split('.')[0] + ".png")
 
-        # Check if the file is an image
-        if not img.endswith(".jpg"):
-            continue
-        
-        try:
-            image = cv2.imread(image_path)
+            # Check if the file is an image
+            if not img.endswith(".jpg"):
+                continue
+            
+            try:
+                image = cv2.imread(image_path)
 
-            # if mask is not None:
-            mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-            pictures = detect_pictures(image, mask)  # Detect pictures (regions of interest)
-        except Exception as e:
-            print(f"E processing image {img}: {e}")
-            continue
-        
-        img_top_K = []
+                # if mask is not None:
+                mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+                pictures = detect_pictures(image, mask)  # Detect pictures (regions of interest)
+            except Exception as e:
+                print(f"E processing image {img}: {e}")
+                continue
+            
+            img_top_K = []
 
-        # Process each region of interest (picture) using find_matches_in_database
-        for pict in pictures:
-            print(image_path)
+            # Process each region of interest (picture) using find_matches_in_database
+            for pict in pictures:
+                #print(image_path)
 
-            # Use find_matches_in_database instead of calculating similarity directly
-            matches = find_matches_in_database(
-                query_image=pict,
-                descriptor=descriptor,
-                top_k=K
-            )
-            # Ensure that matches is a list before extending
-            if isinstance(matches, list):
-                img_top_K.extend(matches)
-            else:
-                print(f"Unexpected result from find_matches_in_database for image {img}: {matches}")
+                # Use find_matches_in_database instead of calculating similarity directly
+                matches = find_matches_in_database(
+                    query_image=pict,
+                    descriptor=descriptor,
+                    top_k=K,
+                    ratio_thresh=ratio
+                )
+                # Ensure that matches is a list before extending
+                if isinstance(matches, list):
+                    img_top_K.extend(matches)
+                else:
+                    print(f"Unexpected result from find_matches_in_database for image {img}: {matches}")
 
-        
-        top_K.append(img_top_K)
+            
+            top_K.append(img_top_K)
+
+        f1 = f1_score(labels, top_K)
+        map_k = mapk(labels, top_K, 1)
+        print(f"F1 Score for {descriptor} with {ratio}: {f1}\n")
+        print(f"mAP@{1} for {descriptor} with {ratio}: {map_k}\n")
     
     return top_K  # Return top K results (list of lists)
 
@@ -327,6 +342,8 @@ if __name__ == '__main__':
         
     if len(os.listdir(denoised_images)) == 0:
         denoiseAll(qsd_folder, denoised_images)
+
+    print("Processing images using detector:", detector_type)
         
     if not os.path.exists(RESULTS_FOLDER):
         os.makedirs(RESULTS_FOLDER)

@@ -104,11 +104,11 @@ class CalculateBackground():
         edges = cv2.Canny(binary, 30, 120)
         
         # Define a kernel for morphological operations
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, kernel, iterations=1)
+        #kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        #edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, kernel, iterations=1)
         
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4))
-        edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=1)
+        #kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4))
+        #edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=1)
         
 
 
@@ -210,8 +210,8 @@ class CalculateBackground():
         _, edges = cv2.threshold(magnitude, 10, 255, cv2.THRESH_BINARY)
 
 
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))  # Smaller kernel to avoid merging
-        edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=1)
+        #kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))  # Smaller kernel to avoid merging
+        #edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=1)
 
         # Guardar la imagen de los bordes detectados
         cv2.imwrite('./data/background/edges.jpg', edges)
@@ -241,6 +241,47 @@ class CalculateBackground():
         cv2.imwrite('./data/background/mask_contours.jpg', mask_contours)
 
         return mask_contours
+    
+    def crop_and_save(self):
+
+        # Step 1: Convert the image to grayscale
+        gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+
+        # Apply Gaussian blur to reduce noise
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+        # Perform edge detection using Canny
+        edges = cv2.Canny(blurred, 50, 150)
+
+        # Find contours
+        contours, _ = cv2.findContours(edges.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Prepare mask and image for drawing contours
+        mask_contours = np.zeros(self.image.shape[:2], dtype=np.uint8)
+        contour_image = self.image.copy()
+
+        # Filter contours based on area and aspect ratio to isolate frame-like contours
+        possible_frames = []
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            x, y, w, h = cv2.boundingRect(cnt)
+            aspect_ratio = float(w) / h
+
+            # Check for contours that are large enough and have a frame-like aspect ratio (Optional)
+            if area > 1000 and 0.8 < aspect_ratio < 1.2:  # Example filter based on area and aspect ratio
+                possible_frames.append(cnt)
+                # Draw filled contour on the mask
+                cv2.drawContours(mask_contours, [cnt], -1, 255, -1)  # -1 means fill contour
+                # Draw contour outline on the original image
+                cv2.drawContours(contour_image, [cnt], -1, (0, 255, 0), 5)  # Green color, thickness 5
+
+        # Save the images with the contours drawn
+        cv2.imwrite('./data/background/contour_image.jpg', contour_image)
+        cv2.imwrite('./data/background/mask_contours.jpg', mask_contours)
+
+        # Return the mask for further use
+        return mask_contours
+
 
     def process_frames(self):
         """Process only contours (frames) detection."""
@@ -263,7 +304,7 @@ class CalculateBackground():
         """Apply morphological operations to clean the mask."""
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (230, 20))
         cleaned_mask = cv2.morphologyEx(final_mask, cv2.MORPH_OPEN, kernel)
-        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)))
+        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2)))
         cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (10, 10)))
         
         return cleaned_mask
