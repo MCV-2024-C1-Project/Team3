@@ -5,6 +5,7 @@ import keypoints as kp
 import pickle
 import matplotlib.pyplot as plt
 
+
 # Constants for paths
 DATA_FOLDER = './data'
 RESULTS_FOLDER = './results'
@@ -87,7 +88,7 @@ def match_with_database(query_descriptors, database_descriptors, ratio_thresh=0.
     return matches_per_image
 
 # Main function to match a query image against a database of images
-def find_matches_in_database(query_image, descriptor="akaze", ratio_thresh=0.65, match_threshold=20, top_k=10):
+def find_matches_in_database(query_image, descriptor="akaze", ratio_thresh=0.95, match_threshold=20, top_k=10):
     """
     Function to find matches for the query image in the database and return top_k results.
     """
@@ -169,7 +170,7 @@ def find_matches_in_database(query_image, descriptor="akaze", ratio_thresh=0.65,
     # Extract the top_k results based on match count, or return [[-1]] if no valid matches
     top_k_indices = [idx for idx, _ in sorted_results[:top_k]] if sorted_results else [-1]
 
-    #print(f"Top {top_k} matches:", top_k_indices)
+    print(f"Top {top_k} matches:", top_k_indices)
     return [top_k_indices]
 
 if __name__ == "__main__":

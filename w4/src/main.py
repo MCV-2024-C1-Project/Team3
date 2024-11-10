@@ -12,7 +12,6 @@ from similarity import ComputeSimilarity
 from matches import find_matches_in_database
 from evaluation.average_precision import mapk
 from sklearn.metrics import f1_score
-from tqdm import tqdm
 
 # Argument parser setup
 parser = argparse.ArgumentParser(description='Process image folder for keypoints detection.')
@@ -257,53 +256,46 @@ def detect_pictures(image, mask):
 def calculate_similarity(descriptor, K, folder):
     """Calculate mAP@K for a given similarity measure and descriptor."""
     measures = ComputeSimilarity()
-    for ratio in tqdm([0.4, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0]):
-        top_K = []
+    top_K = []
 
-        for img in sorted(os.listdir(folder)):
-            image_path = os.path.join(folder, img)
-            mask_path = os.path.join(MASK_FOLDER, img.split('.')[0] + ".png")
+    for img in sorted(os.listdir(folder)):
+        image_path = os.path.join(folder, img)
+        mask_path = os.path.join(MASK_FOLDER, img.split('.')[0] + ".png")
 
-            # Check if the file is an image
-            if not img.endswith(".jpg"):
-                continue
-            
-            try:
-                image = cv2.imread(image_path)
+        # Check if the file is an image
+        if not img.endswith(".jpg"):
+            continue
+        
+        try:
+            image = cv2.imread(image_path)
 
-                # if mask is not None:
-                mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-                pictures = detect_pictures(image, mask)  # Detect pictures (regions of interest)
-            except Exception as e:
-                print(f"E processing image {img}: {e}")
-                continue
-            
-            img_top_K = []
+            # if mask is not None:
+            mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+            pictures = detect_pictures(image, mask)  # Detect pictures (regions of interest)
+        except Exception as e:
+            print(f"E processing image {img}: {e}")
+            continue
+        
+        img_top_K = []
 
-            # Process each region of interest (picture) using find_matches_in_database
-            for pict in pictures:
-                #print(image_path)
+        # Process each region of interest (picture) using find_matches_in_database
+        for pict in pictures:
+            print(image_path)
 
-                # Use find_matches_in_database instead of calculating similarity directly
-                matches = find_matches_in_database(
-                    query_image=pict,
-                    descriptor=descriptor,
-                    top_k=K,
-                    ratio_thresh=ratio
-                )
-                # Ensure that matches is a list before extending
-                if isinstance(matches, list):
-                    img_top_K.extend(matches)
-                else:
-                    print(f"Unexpected result from find_matches_in_database for image {img}: {matches}")
+            # Use find_matches_in_database instead of calculating similarity directly
+            matches = find_matches_in_database(
+                query_image=pict,
+                descriptor=descriptor,
+                top_k=K
+            )
+            # Ensure that matches is a list before extending
+            if isinstance(matches, list):
+                img_top_K.extend(matches)
+            else:
+                print(f"Unexpected result from find_matches_in_database for image {img}: {matches}")
 
-            
-            top_K.append(img_top_K)
-
-        f1 = f1_score(labels, top_K)
-        map_k = mapk(labels, top_K, 1)
-        print(f"F1 Score for {descriptor} with {ratio}: {f1}\n")
-        print(f"mAP@{1} for {descriptor} with {ratio}: {map_k}\n")
+        
+        top_K.append(img_top_K)
     
     return top_K  # Return top K results (list of lists)
 
@@ -315,7 +307,9 @@ def process_similarity_measures(descriptor, labels, k_val, method_folder, images
     if labels is not None:
         top_K = calculate_similarity(descriptor, k_val, folder=images_folder)
         map_k = mapk(labels, top_K, k_val)
+        f1 = f1_score(labels, top_K, average='micro')
         print(f"mAP@{k_val} for {descriptor}: {map_k}")
+        print(f"F1 Score for {descriptor}: {f1}")
     else:
         top_K = calculate_similarity(descriptor, k_val, folder=images_folder)
 
