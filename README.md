@@ -13,6 +13,8 @@ This project implements a **Content Based Image Retrieval** system that searches
     - [Week 1: Image Retrieval Based on Color Histograms](#week-1-image-retrieval-based-on-color-histograms)
     - [Week 2: Background Removal and Advanced Descriptors](#week-2-background-removal-and-advanced-descriptors)
     - [Week 3: Noise Filtering and Texture Descriptors](#week-3-noise-filtering-and-texture-descriptors)
+    - [Week 4: Keypoint Detectors and Advanced Matching](#week-4-keypoint-detectors-and-advanced-matching)
+4. [Final presentation](#final-presentation)
 
 
 ---
@@ -185,3 +187,34 @@ Use DCT, LAB and euclidean to get the best results of this project:
 This command runs the Week 3 system, incorporating noise filtering and texture descriptors for improved retrieval accuracy.
 
 --- 
+
+### Week 4: Keypoint Detectors and Advanced Matching
+
+**Goal**: Improve retrieval accuracy by using advanced keypoint detection and descriptor methods for matching images.
+
+#### Tasks:
+1. **Task 1**: Detect keypoints and compute descriptors in the museum and query images.
+   - Implement multiple keypoint detection methods (e.g., AKAZE, ORB, SIFT).
+   
+2. **Task 2**: Find tentative matches based on local appearance similarity and verify matches.
+   - Use various similarity metrics to identify the closest matches based on the extracted descriptors.
+
+3. **Task 3**: Evaluate the system on QSD1-W4 using mean Average Precision (mAP) at K, comparing with the best results from Week 3.
+
+#### To run the Week 4 system:
+```bash
+python src/main.py qsd1_w4 orb
+```
+In this command:
+- `qsd1_w4` is the folder containing the query images.
+- `orb` specifies the descriptor method (options: AKAZE, ORB, or SIFT).
+
+This command executes the Week 4 system, detecting keypoints, computing descriptors, and finding image matches using the selected descriptor.
+
+---
+
+### Final Presentation
+The final presentation for this project summarizes the key advancements and findings across all weeks, focusing on the most impactful techniques and results. Access the presentation at the following link:
+
+[Final Presentation Link](https://docs.google.com/presentation/d/15qg-4-q9MgMeEbzIQsPWYFCI7TDiIKybIazdAtkQUx8/edit?usp=sharing)
+
