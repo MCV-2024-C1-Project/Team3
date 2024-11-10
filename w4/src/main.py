@@ -10,8 +10,9 @@ from denoiser import denoiseAll, LinearDenoiser
 from background_removal import CalculateBackground
 from similarity import ComputeSimilarity
 from matches import find_matches_in_database
-from evaluation.average_precision import mapk
+from evaluation.average_precision import mapk, mean_f1_at_k
 from sklearn.metrics import f1_score
+from itertools import chain
 
 # Argument parser setup
 parser = argparse.ArgumentParser(description='Process image folder for keypoints detection.')
@@ -307,7 +308,8 @@ def process_similarity_measures(descriptor, labels, k_val, method_folder, images
     if labels is not None:
         top_K = calculate_similarity(descriptor, k_val, folder=images_folder)
         map_k = mapk(labels, top_K, k_val)
-        f1 = f1_score(labels, top_K, average='micro')
+
+        f1 = mean_f1_at_k(labels, top_K, k=k_val)
         print(f"mAP@{k_val} for {descriptor}: {map_k}")
         print(f"F1 Score for {descriptor}: {f1}")
     else:
